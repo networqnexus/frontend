@@ -17,8 +17,8 @@ import HRMS       from "@/components/Features/HRMS/HRMS";
 import Settings   from "@/components/Features/Settings/Settings";
 import Analytics  from "@/components/Features/Analytics/Analytics";
 import Projects   from "@/components/Features/Projects/Projects";
-import Streaming  from "@/components/Features/Streaming/Streaming";
-import MainLayout from "@/layouts/MainLayout";
+import Streaming   from "@/components/Features/Streaming/Streaming";
+import HelpCenter  from "@/components/Features/HelpCenter/HelpCenter";
 import useAuth    from "@/hooks/useAuth";
 
 const AuthLoader = () => (
@@ -76,7 +76,7 @@ export default function AppRoutes() {
       <Route path="/crm"  element={<ProtectedRoute><CRM/></ProtectedRoute>}/>
       <Route path="/hrms" element={<ProtectedRoute><HRMS/></ProtectedRoute>}/>
 
-      <Route path="/help" element={<MainLayout><div className="text-center py-20 text-muted-foreground">Help Center coming soon</div></MainLayout>}/>
+      <Route path="/help" element={<ProtectedRoute><HelpCenter/></ProtectedRoute>}/>
       <Route path="*"   element={<Navigate to="/" replace/>}/>
     </Routes>
   );
