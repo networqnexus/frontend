@@ -7,7 +7,7 @@ const request = async (method, endpoint, body = null, token = null) => {
   if (body) config.body = JSON.stringify(body);
   let res;
   try { res = await fetch(`${BASE_URL}${endpoint}`, config); }
-  catch { throw new Error("Backend se connect nahi ho pa raha."); }
+  catch { throw new Error("Unable to connect to the server. Please make sure the backend is running."); }
   const ct = res.headers.get("content-type") || "";
   if (!ct.includes("application/json")) throw new Error("Server error.");
   const data = await res.json();

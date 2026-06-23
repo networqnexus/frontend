@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import MainLayout from "@/layouts/MainLayout";
+import PremiumGate from "@/components/Features/Premium/PremiumGate";
+import useAuth from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCandidates, getAtsStats, addCandidate, updateStage, deleteCandidate } from "@/api/atsApi";
@@ -79,6 +81,9 @@ const AddCandidateModal = ({ onClose, onAdd }) => {
 };
 
 const ATS = () => {
+  const { user } = useAuth();
+  if (!user?.isPremium) return <MainLayout><PremiumGate feature="ATS (Applicant Tracking System)" /></MainLayout>;
+
   const [candidates, setCandidates] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);

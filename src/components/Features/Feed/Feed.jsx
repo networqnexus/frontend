@@ -3,13 +3,22 @@ import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { getPosts, createPost, likePost, commentPost, deletePost, editPost } from "@/api/postApi";
+import { getPosts, createPost, likePost, savePost, getSavedPosts, commentPost, deletePost, editPost } from "@/api/postApi";
 import useAuth from "@/hooks/useAuth";
 import {
   Image, Video, ThumbsUp, MessageCircle, Share2, Bookmark,
   MoreHorizontal, Globe, Repeat2, Send, ChevronDown, ChevronUp,
-  Loader2, Trash2, Sparkles, Flame, RefreshCw, Users, X, Edit3, Check
+  Loader2, Trash2, Sparkles, Flame, RefreshCw, Users, X, Edit3, Check, BookmarkCheck
 } from "lucide-react";
+
+const REACTIONS = [
+  { emoji: "👍", label: "Like" },
+  { emoji: "❤️", label: "Love" },
+  { emoji: "🎉", label: "Celebrate" },
+  { emoji: "💡", label: "Insightful" },
+  { emoji: "👏", label: "Appreciate" },
+  { emoji: "🤝", label: "Support" },
+];
 
 const Toast = ({ message, type, onClose }) => (
   <div className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${type==="error"?"bg-destructive text-destructive-foreground":"bg-foreground text-background"}`}>
@@ -107,7 +116,7 @@ const CreatePost = ({ user, onPost, onError }) => {
   );
 };
 
-const PostCard = ({ post, currentUserId, onUpdate, onDelete }) => {
+const PostCard = ({ post, currentUserId, savedIds, onUpdate, onDelete, onSaveToggle }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -116,23 +125,44 @@ const PostCard = ({ post, currentUserId, onUpdate, onDelete }) => {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(post.content);
   const [saving, setSaving] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
+  const [savingBookmark, setSavingBookmark] = useState(false);
 
   const LIMIT = 250;
   const isLong = post.content?.length > LIMIT;
   const isOwn = post.author?._id === currentUserId || post.author?._id?.toString() === currentUserId;
-  const liked = post.likes?.includes(currentUserId);
+  const myReaction = post.reactions?.find(r => (r.user?._id || r.user)?.toString() === currentUserId);
+  const liked = !!myReaction;
+  const isSaved = savedIds?.has(post._id);
   const initials = post.author?.name?.split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)||"U";
+
+  const topReactions = (() => {
+    if (!post.reactions?.length) return [];
+    const counts = {};
+    post.reactions.forEach(r => { counts[r.type] = (counts[r.type]||0) + 1; });
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([emoji])=>emoji);
+  })();
 
   const timeAgo = (d) => {
     const m=Math.floor((Date.now()-new Date(d))/60000);
     if(m<1)return"Just now";if(m<60)return`${m}m ago`;if(m<1440)return`${Math.floor(m/60)}h ago`;return`${Math.floor(m/1440)}d ago`;
   };
 
-  const handleLike = async () => {
+  const handleReact = async (type = "like") => {
+    setShowReactions(false);
     try {
-      const data = await likePost(post._id);
-      onUpdate(post._id, { likes: data.liked ? [...(post.likes||[]), currentUserId] : (post.likes||[]).filter(id=>id!==currentUserId) });
+      const data = await likePost(post._id, type);
+      onUpdate(post._id, { reactions: data.reactions });
     } catch {}
+  };
+
+  const handleSave = async () => {
+    setSavingBookmark(true);
+    try {
+      await savePost(post._id);
+      onSaveToggle(post._id);
+    } catch {}
+    setSavingBookmark(false);
   };
 
   const handleComment = async () => {
@@ -241,25 +271,52 @@ const PostCard = ({ post, currentUserId, onUpdate, onDelete }) => {
 
         {post.tags?.length>0&&<div className="flex flex-wrap gap-1.5 mb-3">{post.tags.map(tag=><span key={tag} className="text-xs text-primary cursor-pointer hover:underline">#{tag}</span>)}</div>}
 
-        {(post.likes?.length>0||post.comments?.length>0)&&(
+        {(post.reactions?.length>0||post.comments?.length>0)&&(
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            {post.likes?.length>0&&<span>👍 {post.likes.length}</span>}
+            {post.reactions?.length>0&&(
+              <span className="flex items-center gap-1">
+                {topReactions.map(e=><span key={e}>{e}</span>)}
+                {post.reactions.length}
+              </span>
+            )}
             {post.comments?.length>0&&<button onClick={()=>setShowComments(!showComments)} className="hover:underline">{post.comments.length} comments</button>}
           </div>
         )}
 
         <Separator className="mb-2"/>
 
-        <div className="flex items-center gap-0.5 -mx-1">
-          <button onClick={handleLike} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${liked?"text-primary bg-primary/5":"text-muted-foreground hover:bg-muted"}`}>
-            <ThumbsUp size={14} className={liked?"fill-primary":""}/> Like
-          </button>
+        <div className="relative flex items-center gap-0.5 -mx-1">
+          {/* Reaction button with picker */}
+          <div className="relative"
+            onMouseEnter={()=>setShowReactions(true)}
+            onMouseLeave={()=>setShowReactions(false)}
+          >
+            {showReactions&&(
+              <div className="absolute bottom-full left-0 mb-1 bg-card border border-border rounded-full px-2 py-1 flex gap-0.5 shadow-lg z-10">
+                {REACTIONS.map(r=>(
+                  <button key={r.emoji} onClick={()=>handleReact(r.emoji)} title={r.label}
+                    className="text-xl hover:scale-125 transition-transform leading-none p-0.5">
+                    {r.emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={()=>handleReact(myReaction?.type||"like")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${liked?"text-primary bg-primary/5":"text-muted-foreground hover:bg-muted"}`}>
+              <span className="text-sm leading-none">{myReaction?.type||<ThumbsUp size={14}/>}</span>
+              {typeof (myReaction?.type) === "string" ? myReaction.type==="like"?"Like":REACTIONS.find(r=>r.emoji===myReaction.type)?.label||"Like" : "Like"}
+            </button>
+          </div>
+
           <button onClick={()=>setShowComments(!showComments)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showComments?"text-foreground bg-muted":"text-muted-foreground hover:bg-muted"}`}>
             <MessageCircle size={14}/> Comment
           </button>
           <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted"><Repeat2 size={14}/> Repost</button>
           <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted"><Share2 size={14}/> Share</button>
-          <button className="ml-auto flex items-center px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted"><Bookmark size={14}/></button>
+          <button onClick={handleSave} disabled={savingBookmark}
+            className={`ml-auto flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isSaved?"text-amber-500":"text-muted-foreground hover:bg-muted"}`}>
+            {isSaved?<BookmarkCheck size={14} className="fill-amber-500"/>:<Bookmark size={14}/>}
+          </button>
         </div>
 
         {showComments&&(
@@ -293,6 +350,8 @@ const PostCard = ({ post, currentUserId, onUpdate, onDelete }) => {
 const Feed = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
+  const [savedIds, setSavedIds] = useState(new Set());
+  const [savedPosts, setSavedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -313,16 +372,44 @@ const Feed = () => {
     } catch(e) { showToast(e.message,"error"); }
   }, []);
 
-  useEffect(() => { setLoading(true); fetchPosts(1,true).finally(()=>setLoading(false)); }, []);
+  const fetchSaved = useCallback(async () => {
+    try {
+      const data = await getSavedPosts();
+      setSavedPosts(data.posts||[]);
+      setSavedIds(new Set((data.posts||[]).map(p=>p._id)));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([fetchPosts(1,true), fetchSaved()]).finally(()=>setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (filter === "saved") fetchSaved();
+  }, [filter]);
 
   const handleRefresh = async () => { setRefreshing(true); await fetchPosts(1,true); setRefreshing(false); showToast("Feed refreshed!"); };
   const handleLoadMore = async () => { setLoadingMore(true); await fetchPosts(page+1); setLoadingMore(false); };
   const handleNewPost = (post) => { if(post) setPosts(prev=>[post,...prev]); showToast("Post shared!"); };
-  const handleUpdate = (id, changes) => setPosts(prev=>prev.map(p=>p._id===id?{...p,...changes}:p));
+  const handleUpdate = (id, changes) => {
+    setPosts(prev=>prev.map(p=>p._id===id?{...p,...changes}:p));
+    setSavedPosts(prev=>prev.map(p=>p._id===id?{...p,...changes}:p));
+  };
   const handleDelete = (id) => { setPosts(prev=>prev.filter(p=>p._id!==id)); showToast("Post deleted"); };
+  const handleSaveToggle = (id) => {
+    setSavedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); showToast("Removed from saved"); }
+      else { next.add(id); showToast("Post saved!"); }
+      return next;
+    });
+    setSavedPosts(prev => prev.filter(p => p._id !== id));
+  };
 
   const displayPosts = filter==="trending"
-    ? [...posts].sort((a,b)=>((b.likes?.length||0)+(b.comments?.length||0)*2)-((a.likes?.length||0)+(a.comments?.length||0)*2))
+    ? [...posts].sort((a,b)=>((b.reactions?.length||0)+(b.comments?.length||0)*2)-((a.reactions?.length||0)+(a.comments?.length||0)*2))
+    : filter==="saved" ? savedPosts
     : posts;
 
   return (
@@ -331,7 +418,7 @@ const Feed = () => {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-2">
           <div className="flex items-center gap-0.5">
-            {[{key:"foryou",label:"For You",icon:Sparkles},{key:"following",label:"Following",icon:Users},{key:"trending",label:"Trending",icon:Flame}].map(({key,label,icon:Icon})=>(
+            {[{key:"foryou",label:"For You",icon:Sparkles},{key:"following",label:"Following",icon:Users},{key:"trending",label:"Trending",icon:Flame},{key:"saved",label:"Saved",icon:Bookmark}].map(({key,label,icon:Icon})=>(
               <button key={key} onClick={()=>setFilter(key)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter===key?"bg-muted text-foreground":"text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
                 <Icon size={14}/>{label}
               </button>
@@ -348,7 +435,7 @@ const Feed = () => {
           <div className="rounded-xl border border-border bg-card p-12 text-center"><p className="text-muted-foreground text-sm">No posts yet. Be the first to share!</p></div>
         ):(
           <div className="flex flex-col gap-4">
-            {displayPosts.map(post=><PostCard key={post._id} post={post} currentUserId={user?.id} onUpdate={handleUpdate} onDelete={handleDelete}/>)}
+            {displayPosts.map(post=><PostCard key={post._id} post={post} currentUserId={user?.id} savedIds={savedIds} onUpdate={handleUpdate} onDelete={handleDelete} onSaveToggle={handleSaveToggle}/>)}
           </div>
         )}
 

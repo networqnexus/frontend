@@ -19,6 +19,10 @@ import Analytics  from "@/components/Features/Analytics/Analytics";
 import Projects   from "@/components/Features/Projects/Projects";
 import Streaming   from "@/components/Features/Streaming/Streaming";
 import HelpCenter  from "@/components/Features/HelpCenter/HelpCenter";
+import Events        from "@/components/Features/Events/Events";
+import PricingPage         from "@/components/Features/Premium/PricingPage";
+import PremiumSuccess      from "@/components/Features/Premium/PremiumSuccess";
+import NotificationsPage   from "@/components/Features/Notifications/NotificationsPage";
 import useAuth    from "@/hooks/useAuth";
 
 const AuthLoader = () => (
@@ -71,6 +75,10 @@ export default function AppRoutes() {
       <Route path="/analytics"   element={<ProtectedRoute><Analytics/></ProtectedRoute>}/>
       <Route path="/projects"    element={<ProtectedRoute><Projects/></ProtectedRoute>}/>
       <Route path="/streaming"   element={<ProtectedRoute><Streaming/></ProtectedRoute>}/>
+      <Route path="/events"          element={<ProtectedRoute><Events/></ProtectedRoute>}/>
+      <Route path="/notifications"   element={<ProtectedRoute><NotificationsPage/></ProtectedRoute>}/>
+      <Route path="/premium"         element={<ProtectedRoute><PricingPage/></ProtectedRoute>}/>
+      <Route path="/premium/success" element={<ProtectedRoute><PremiumSuccess/></ProtectedRoute>}/>
 
       <Route path="/ats"  element={<ProtectedRoute><ATS/></ProtectedRoute>}/>
       <Route path="/crm"  element={<ProtectedRoute><CRM/></ProtectedRoute>}/>

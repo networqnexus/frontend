@@ -46,11 +46,14 @@ const RightSidebar = memo(() => {
           <div className="flex flex-col gap-3">
             {suggestions.map(u => (
               <div key={u._id} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0 overflow-hidden">
+                <div
+                  className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0 overflow-hidden cursor-pointer"
+                  onClick={() => navigate(`/profile/${u.username}`)}
+                >
                   {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="" /> : getInitials(u.name)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate leading-tight">{u.name}</p>
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/profile/${u.username}`)}>
+                  <p className="text-sm font-medium text-foreground truncate leading-tight hover:text-primary transition-colors">{u.name}</p>
                   <p className="text-xs text-muted-foreground truncate">{u.headline || u.location}</p>
                 </div>
                 <Button variant="outline" size="xs" className="shrink-0" disabled={sent[u._id]} onClick={() => handleConnect(u._id)}>

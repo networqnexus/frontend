@@ -50,7 +50,7 @@ const ScheduledStreamCard = ({ stream, currentUserId, onLaunch, onEdit, onCancel
       {isDue && isHost && (
         <div className="bg-red-500 text-white text-xs font-bold px-4 py-1.5 flex items-center gap-2">
           <div className="w-2 h-2 bg-white rounded-full animate-ping flex-shrink-0" />
-          Tumhara stream ab live hona chahiye! Neeche "Go Live Now" dabao.
+          Your stream is due now! Click "Go Live Now" below to start.
         </div>
       )}
 
