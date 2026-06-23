@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import {
   Search, MapPin, Briefcase, IndianRupee, Bookmark, BookmarkCheck,
   CheckCircle2, SlidersHorizontal, X, Loader2, ChevronRight,
-  Plus, Users, Trash2, ArrowLeft, Upload, FileText, Download
+  Plus, Users, Trash2, ArrowLeft, Upload, FileText, Download, Calendar
 } from "lucide-react";
 import {
   getJobs, getSavedJobs, getMyPostedJobs, getApplicants,
   createJob, applyJob, saveJob, deleteJob, toggleJobStatus,
-  updateApplicationStatus
+  updateApplicationStatus, scheduleInterview
 } from "@/api/jobApi";
+
 import useAuth from "@/hooks/useAuth";
 
 const JOB_TYPES   = ["All Types",  "Remote", "Hybrid", "On-site"];
@@ -65,7 +66,7 @@ const ApplyModal = ({ job, onClose, onApplied }) => {
     } catch(e) { setError(e.message || "Failed to apply. Please try again."); }
     setApplying(false);
   };
-
+ 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-card rounded-2xl border border-border w-full max-w-lg shadow-2xl flex flex-col">
@@ -202,10 +203,12 @@ const PostJobModal = ({ onClose, onPosted }) => {
 };
 
 // ── Applicants Panel ──────────────────────────────────────────────────
+// ── Applicants Panel ──────────────────────────────────────────────────
 const ApplicantsPanel = ({ job, onBack }) => {
   const navigate = useNavigate();
-  const [applicants, setApplicants] = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [applicants,   setApplicants]   = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [scheduleFor,  setScheduleFor]  = useState(null);
 
   useEffect(() => {
     getApplicants(job._id)
@@ -214,77 +217,186 @@ const ApplicantsPanel = ({ job, onBack }) => {
       .finally(() => setLoading(false));
   }, [job._id]);
 
-  const handleStatusChange = async (userId, status) => {
+  const handleStatusChange = async (applicant, status) => {
+    if (status === "shortlisted") {
+      setScheduleFor(applicant);
+      return;
+    }
     try {
-      await updateApplicationStatus(job._id, userId, status);
-      setApplicants(prev => prev.map(a => a.user?._id === userId ? { ...a, status } : a));
+      await updateApplicationStatus(job._id, applicant.user?._id, status);
+      setApplicants(prev => prev.map(a => a.user?._id === applicant.user?._id ? { ...a, status } : a));
     } catch {}
   };
 
+  const handleScheduled = (userId) => {
+    setApplicants(prev => prev.map(a => a.user?._id === userId ? { ...a, status: "shortlisted" } : a));
+  };
+
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden sticky top-20">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-        <button onClick={onBack} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ArrowLeft size={15}/></button>
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Applicants — {job.title}</h3>
-          <p className="text-xs text-muted-foreground">{job.applicants?.length || 0} total</p>
-        </div>
-      </div>
-      <div className="divide-y divide-border max-h-[540px] overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground"/></div>
-        ) : applicants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Users size={32} className="opacity-20 mb-2"/>
-            <p className="text-sm">No applicants yet</p>
+    <>
+      {scheduleFor && (
+        <ScheduleInterviewModal
+          job={job}
+          applicant={scheduleFor}
+          onClose={() => setScheduleFor(null)}
+          onScheduled={handleScheduled}
+        />
+      )}
+      <div className="rounded-xl border border-border bg-card overflow-hidden sticky top-20">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <button onClick={onBack} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ArrowLeft size={15}/></button>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Applicants — {job.title}</h3>
+            <p className="text-xs text-muted-foreground">{job.applicants?.length || 0} total</p>
           </div>
-        ) : applicants.map((a, i) => {
-          const u = a.user || {};
-          const status = a.status || "pending";
-          const sc = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
-          return (
-            <div key={u._id || i} className="px-4 py-4 hover:bg-muted/30 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0 overflow-hidden">
-                  {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt=""/> : u.name?.[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-foreground">{u.name}</p>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sc.cls}`}>{sc.label}</span>
+        </div>
+        <div className="divide-y divide-border max-h-[540px] overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground"/></div>
+          ) : applicants.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Users size={32} className="opacity-20 mb-2"/>
+              <p className="text-sm">No applicants yet</p>
+            </div>
+          ) : applicants.map((a, i) => {
+            const u = a.user || {};
+            const status = a.status || "pending";
+            const sc = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+            return (
+              <div key={u._id || i} className="px-4 py-4 hover:bg-muted/30 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0 overflow-hidden">
+                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt=""/> : u.name?.[0]?.toUpperCase()}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{u.headline || u.location}</p>
-                  {a.coverNote && (
-                    <p className="text-xs text-muted-foreground/80 italic mt-1.5 line-clamp-2 bg-muted/50 px-2.5 py-1.5 rounded-lg border border-border/50">
-                      "{a.coverNote}"
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <select
-                      value={status}
-                      onChange={e => handleStatusChange(u._id, e.target.value)}
-                      className="text-xs h-7 px-2 rounded-lg border border-input bg-background text-foreground outline-none cursor-pointer"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="shortlisted">Shortlisted</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-                    {a.resumeUrl && (
-                      <a href={a.resumeUrl} download={`${u.name?.replace(/\s+/g,"-") || "resume"}.pdf`}
-                        className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                        <Download size={11}/> Resume
-                      </a>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-foreground">{u.name}</p>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sc.cls}`}>{sc.label}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{u.headline || u.location}</p>
+                    {a.coverNote && (
+                      <p className="text-xs text-muted-foreground/80 italic mt-1.5 line-clamp-2 bg-muted/50 px-2.5 py-1.5 rounded-lg border border-border/50">
+                        "{a.coverNote}"
+                      </p>
                     )}
-                    <Button size="sm" variant="outline" className="h-7 text-xs px-3" onClick={() => navigate(`/profile/${u.username}`)}>
-                      Profile
-                    </Button>
+                    {a.interview?.date && status === "shortlisted" && (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
+                        <Calendar size={10}/>
+                        {a.interview.date} · {a.interview.time}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <select
+                        value={status}
+                        onChange={e => handleStatusChange(a, e.target.value)}
+                        className="text-xs h-7 px-2 rounded-lg border border-input bg-background text-foreground outline-none cursor-pointer"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="reviewed">Reviewed</option>
+                        <option value="shortlisted">Shortlisted</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                      {a.resumeUrl && (
+                        <a href={a.resumeUrl} download={`${u.name?.replace(/\s+/g,"-") || "resume"}.pdf`}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                          <Download size={11}/> Resume
+                        </a>
+                      )}
+                      <Button size="sm" variant="outline" className="h-7 text-xs px-3" onClick={() => navigate(`/profile/${u.username}`)}>
+                        Profile
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+};
+
+
+// ── Schedule Interview Modal ──────────────────────────────────────────
+const ScheduleInterviewModal = ({ job, applicant, onClose, onScheduled }) => {
+  const [form, setForm]     = useState({ date: "", time: "", meetLink: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.date || !form.time || !form.meetLink.trim()) {
+      setError("Please fill in all fields."); return;
+    }
+    setSaving(true); setError("");
+    try {
+      await scheduleInterview(job._id, applicant.user?._id, form);
+      onScheduled(applicant.user?._id);
+      onClose();
+    } catch (e) {
+      setError(e.message || "Failed to schedule interview. Try again.");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-2xl border border-border w-full max-w-md shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Schedule Interview</h3>
+            <p className="text-xs text-muted-foreground">{applicant.user?.name} · {job.title}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground">
+            <X size={16}/>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-4">
+          <p className="text-xs text-muted-foreground bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-lg">
+            An email with the interview details and Google Meet link will be sent automatically to{" "}
+            <span className="font-medium text-foreground">{applicant.user?.name}</span>.
+          </p>
+
+          <div>
+            <label className="text-xs font-medium text-foreground mb-1.5 block">Interview Date *</label>
+            <Input
+              type="date"
+              value={form.date}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={e => set("date", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-foreground mb-1.5 block">Interview Time *</label>
+            <Input
+              type="time"
+              value={form.time}
+              onChange={e => set("time", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-foreground mb-1.5 block">Google Meet Link *</label>
+            <Input
+              type="url"
+              placeholder="https://meet.google.com/xxx-xxxx-xxx"
+              value={form.meetLink}
+              onChange={e => set("meetLink", e.target.value)}
+            />
+          </div>
+
+          {error && <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="flex-1 gap-1.5" onClick={handleSubmit} disabled={saving}>
+            {saving
+              ? <><Loader2 size={14} className="animate-spin"/>Scheduling…</>
+              : <><Calendar size={14}/>Schedule & Notify</>}
+          </Button>
+        </div>
       </div>
     </div>
   );

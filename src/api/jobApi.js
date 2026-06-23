@@ -10,3 +10,5 @@ export const saveJob                 = (id)           => apiRequest("PUT",  `/jo
 export const toggleJobStatus         = (id)           => apiRequest("PUT",  `/jobs/${id}/toggle`);
 export const deleteJob               = (id)           => apiRequest("DELETE", `/jobs/${id}`);
 export const updateApplicationStatus = (jobId, userId, status) => apiRequest("PUT", `/jobs/${jobId}/applicant/${userId}/status`, { status });
+export const scheduleInterview = (jobId, userId, data) =>
+  apiRequest("POST", `/jobs/${jobId}/applicant/${userId}/schedule-interview`, data);
