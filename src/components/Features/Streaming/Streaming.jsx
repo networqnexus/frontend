@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import MainLayout from "@/layouts/MainLayout";
+import PremiumGate from "@/components/Features/Premium/PremiumGate";
 import { Button } from "@/components/ui/button";
 import { Radio, Play, Eye, Video, Crown, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import HostView   from "./HostView";
@@ -102,7 +103,7 @@ const StreamDueAlert = ({ stream, onGoLive, onDismiss }) => (
         </div>
         <div>
           <p className="text-sm font-bold text-foreground">Stream Starting Now!</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Tumhara scheduled stream live hone ka time aa gaya</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Your scheduled stream is ready to go live.</p>
         </div>
       </div>
       <div className="bg-muted rounded-lg px-4 py-3">
@@ -223,6 +224,7 @@ const StreamCard = ({ stream, isOwner, onClick }) => (
 /* ─── Main Component ─────────────────────────────────── */
 const Streaming = () => {
   const { user } = useAuth();
+  const canHost = !!user?.isPremium;
 
   const [view,             setView]            = useState("list");
   const [activeTab,        setActiveTab]       = useState("live");
@@ -403,21 +405,33 @@ const Streaming = () => {
             <p className="text-sm text-muted-foreground">Watch, host, and schedule live sessions</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onClick={() => { setStreamToEdit(null); setShowSchedule(true); }}
-            >
-              <Calendar size={14} /> Schedule
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 bg-red-500 hover:bg-red-600"
-              onClick={() => setShowGoLive(true)}
-            >
-              <Radio size={14} /> Go Live
-            </Button>
+            {canHost ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => { setStreamToEdit(null); setShowSchedule(true); }}
+                >
+                  <Calendar size={14} /> Schedule
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-red-500 hover:bg-red-600"
+                  onClick={() => setShowGoLive(true)}
+                >
+                  <Radio size={14} /> Go Live
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                className="gap-1.5 bg-yellow-500 hover:bg-yellow-400 text-yellow-950"
+                onClick={() => window.location.href = "/premium"}
+              >
+                <Crown size={14} /> Upgrade to Host
+              </Button>
+            )}
           </div>
         </div>
 

@@ -2,7 +2,7 @@ import { useEffect, useState, memo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home, Users, Briefcase, MessageSquare, Layers, BarChart2,
-  UserCheck, ClipboardList, Building2, Radio, Settings, HelpCircle
+  UserCheck, ClipboardList, Building2, Radio, Settings, HelpCircle, CalendarDays, Crown
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import useAuth from "@/hooks/useAuth";
@@ -13,6 +13,7 @@ const mainLinks = [
   { label:"Network",  icon:Users,         path:"/network"   },
   { label:"Jobs",     icon:Briefcase,     path:"/jobs"      },
   { label:"Messages", icon:MessageSquare, path:"/messages"  },
+  { label:"Events",   icon:CalendarDays,  path:"/events"    },
   { label:"Projects", icon:Layers,        path:"/projects"  },
 ];
 
@@ -28,6 +29,25 @@ const bottomLinks = [
   { label:"Settings", icon:Settings,   path:"/settings" },
   { label:"Help",     icon:HelpCircle, path:"/help"     },
 ];
+
+const PremiumLink = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const active = location.pathname.startsWith("/premium");
+  return (
+    <button
+      onClick={() => navigate("/premium")}
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold transition-colors group
+        ${active
+          ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+          : "text-yellow-600 dark:text-yellow-500 hover:bg-yellow-500/10"}`}
+    >
+      <Crown size={16} className="text-yellow-500" />
+      <span className="flex-1 text-left">Premium</span>
+      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 leading-none">PRO</span>
+    </button>
+  );
+};
 
 const NavLink = ({ label, icon: Icon, path, badge }) => {
   const navigate = useNavigate();
@@ -126,6 +146,7 @@ const Sidebar = memo(() => {
       <Separator className="my-2"/>
 
       <div className="flex flex-col gap-0.5">
+        <PremiumLink />
         {bottomLinks.map(l => <NavLink key={l.path} {...l}/>)}
       </div>
     </div>

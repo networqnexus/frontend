@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import MainLayout from "@/layouts/MainLayout";
+import PremiumGate from "@/components/Features/Premium/PremiumGate";
+import useAuth from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -64,6 +66,9 @@ const AddEmployeeModal = ({ onClose, onAdd }) => {
 };
 
 const HRMS = () => {
+  const { user } = useAuth();
+  if (!user?.isPremium) return <MainLayout><PremiumGate feature="HRMS (Human Resource Management System)" /></MainLayout>;
+
   const [employees, setEmployees] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [stats, setStats] = useState(null);

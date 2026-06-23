@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import MainLayout from "@/layouts/MainLayout";
+import PremiumGate from "@/components/Features/Premium/PremiumGate";
+import useAuth from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -75,6 +77,9 @@ const AddLeadModal = ({ onClose, onAdd }) => {
 };
 
 const CRM = () => {
+  const { user } = useAuth();
+  if (!user?.isPremium) return <MainLayout><PremiumGate feature="CRM (Customer Relationship Manager)" /></MainLayout>;
+
   const [leads, setLeads] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);

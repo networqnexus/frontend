@@ -238,6 +238,7 @@ import {
   Check, X, Loader2, MessageSquare, Eye, TrendingUp
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import useAuth from "@/hooks/useAuth";
 
 // ── Avatar helper ─────────────────────────────────────────────────
 const Avatar = ({ user, size = "md" }) => {
@@ -381,6 +382,8 @@ const PendingPanel = ({ requests, onAccept, onReject }) => {
 
 // ── Main Network page ─────────────────────────────────────────────
 const Network = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [tab,         setTab]         = useState("suggestions");
   const [suggestions, setSuggestions] = useState([]);
   const [connections, setConnections] = useState([]);
@@ -411,7 +414,13 @@ const Network = () => {
     try {
       await sendRequest(userId);
       setSent(p => ({ ...p, [userId]: true }));
-    } catch {}
+    } catch (e) {
+      if (e.message?.includes("50 connections") || e.message?.includes("Premium")) {
+        if (window.confirm("Free plan allows only 50 connections.\n\nUpgrade to Premium for unlimited connections?\n\nClick OK to go to the upgrade page.")) {
+          navigate("/premium");
+        }
+      }
+    }
   };
 
   const handleAccept = async (id) => {

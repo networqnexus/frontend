@@ -76,7 +76,7 @@ const VerifyEmail = () => {
                 <Button className="w-full" size="lg">Go to Login</Button>
               </Link>
               <p className="text-center text-xs text-muted-foreground">
-                Signup karo toh naya verification email milega
+                Sign up again to receive a new verification email
               </p>
             </div>
           )}

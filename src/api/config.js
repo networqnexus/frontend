@@ -13,7 +13,7 @@ export const apiRequest = async (method, endpoint, body = null, isFormData = fal
   try {
     res = await fetch(`${BASE_URL}${endpoint}`, config);
   } catch {
-    throw new Error("Server se connect nahi ho pa raha. Backend chalao.");
+    throw new Error("Unable to connect to the server. Please make sure the backend is running.");
   }
 
   const ct = res.headers.get("content-type") || "";

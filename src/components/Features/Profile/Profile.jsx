@@ -4,14 +4,14 @@ import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { getProfile, getMe, updateProfile } from "@/api/profileApi";
+import { getProfile, getMe, updateProfile, endorseSkill } from "@/api/profileApi";
 import { sendRequest } from "@/api/networkApi";
 import { likePost } from "@/api/postApi";
 import useAuth from "@/hooks/useAuth";
 import {
   MapPin, Link2, Edit3, Plus, Briefcase, GraduationCap, Award,
   Star, ThumbsUp, MessageCircle, ExternalLink, CheckCircle2,
-  Users, Eye, MoreHorizontal, Camera, Loader2, X
+  Users, Eye, MoreHorizontal, Camera, Loader2, X, Crown
 } from "lucide-react";
 
 const Toast = ({ message, type, onClose }) => (
@@ -157,7 +157,14 @@ const Profile = () => {
               </div>
             </div>
 
-            <h1 className="text-xl font-bold text-foreground">{profile.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold text-foreground">{profile.name}</h1>
+              {profile.isPremium && (
+                <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30">
+                  <Crown size={11} /> Premium
+                </span>
+              )}
+            </div>
             <p className="text-sm text-foreground/80 mt-0.5">{profile.headline || "No headline yet"}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
               {profile.location && <span className="flex items-center gap-1"><MapPin size={11}/>{profile.location}</span>}
@@ -292,21 +299,53 @@ const Profile = () => {
           <TabsContent value="skills" className="mt-4">
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-foreground">Skills</h2>
+                <h2 className="text-base font-semibold text-foreground">Skills & Endorsements</h2>
                 {isOwnProfile && <Button variant="ghost" size="icon-sm" onClick={()=>navigate("/settings")}><Edit3 size={15}/></Button>}
               </div>
               {profile.skills?.length > 0 ? (
                 <>
                   <div className="flex flex-col gap-3">
-                    {visibleSkills?.map((skill,i)=>(
-                      <div key={skill} className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center"><Star size={14} className="text-muted-foreground"/></div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">{skill}</p>
-                          <div className="h-1 bg-muted rounded-full mt-1 overflow-hidden"><div className="h-full bg-primary rounded-full" style={{width:`${70+i*5}%`}}/></div>
+                    {visibleSkills?.map((skill) => {
+                      const endorsement = profile.endorsements?.find(e => e.skill === skill);
+                      const count = endorsement?.endorsedBy?.length || 0;
+                      const iEndorsed = endorsement?.endorsedBy?.some(id => (id?._id||id)?.toString() === currentUser?.id);
+                      return (
+                        <div key={skill} className="flex items-center gap-3 group">
+                          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                            <Star size={14} className="text-muted-foreground"/>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground">{skill}</p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {count > 0 && (
+                                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <ThumbsUp size={11}/>{count}
+                                  </span>
+                                )}
+                                {!isOwnProfile && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const data = await endorseSkill(profile.username, skill);
+                                        setProfile(p => ({ ...p, endorsements: data.endorsements }));
+                                        showToast(data.endorsed ? `Endorsed ${skill}!` : "Endorsement removed");
+                                      } catch(e) { showToast(e.message,"error"); }
+                                    }}
+                                    className={`text-xs px-2 py-0.5 rounded-full border transition-all ${iEndorsed?"bg-primary/10 border-primary/30 text-primary":"border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
+                                  >
+                                    {iEndorsed ? "✓ Endorsed" : "+ Endorse"}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="h-1 bg-muted rounded-full mt-1.5 overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(40 + count * 10, 100)}%` }}/>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   {profile.skills.length > 6 && (
                     <Button variant="ghost" size="sm" className="w-full mt-3 text-muted-foreground" onClick={()=>setShowAllSkills(s=>!s)}>

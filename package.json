@@ -13,6 +13,7 @@
     "@fontsource-variable/geist": "^5.2.9",
     "@livekit/components-react": "^2.9.21",
     "@react-oauth/google": "^0.13.5",
+    "@stripe/stripe-js": "^9.8.0",
     "@tailwindcss/vite": "^4.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

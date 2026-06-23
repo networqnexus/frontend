@@ -51,7 +51,7 @@ const CheckEmail = () => {
         <CardContent className="pt-4 space-y-3">
           <div className="bg-muted rounded-lg px-4 py-3 space-y-1.5">
             <p className="text-xs text-muted-foreground flex items-center gap-2">
-              <span className="text-primary">•</span> Inbox aur spam folder check karo
+              <span className="text-primary">•</span> Check your inbox and spam folder
             </p>
             <p className="text-xs text-muted-foreground flex items-center gap-2">
               <span className="text-primary">•</span> Link 24 ghante mein expire ho jaayega

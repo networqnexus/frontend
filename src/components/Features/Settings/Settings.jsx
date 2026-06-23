@@ -31,6 +31,7 @@ const Settings = () => {
   });
 
   const [passwords, setPasswords] = useState({ currentPassword:"", newPassword:"", confirmPassword:"" });
+  const [hideOnlineStatus, setHideOnlineStatus] = useState(user?.hideOnlineStatus || false);
   const [avatarPreview, setAvatarPreview] = useState(user?.avatarUrl||null);
   const [avatarFile,    setAvatarFile]    = useState(null);
 
@@ -55,6 +56,18 @@ const Settings = () => {
       showToast("Profile updated!");
     } catch(e) { showToast(e.message,"error"); }
     setSaving(false);
+  };
+
+  const handleToggleOnlineStatus = async (val) => {
+    setHideOnlineStatus(val);
+    try {
+      const data = await updateProfile({ hideOnlineStatus: val });
+      updateUser({ ...user, ...data.user });
+      showToast(val ? "Online status hidden" : "Online status visible");
+    } catch(e) {
+      showToast(e.message, "error");
+      setHideOnlineStatus(!val);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -175,6 +188,21 @@ const Settings = () => {
           <TabsContent value="privacy" className="mt-4">
             <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3">
               <h3 className="text-sm font-semibold text-foreground">Privacy Settings</h3>
+
+              {/* Online status toggle */}
+              <div className="flex items-center justify-between py-3 border-b border-border">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Hide online status</p>
+                  <p className="text-xs text-muted-foreground">Others won't see when you're active or your last seen</p>
+                </div>
+                <button
+                  onClick={() => handleToggleOnlineStatus(!hideOnlineStatus)}
+                  className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${hideOnlineStatus ? "bg-primary" : "bg-muted"}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all ${hideOnlineStatus ? "left-5" : "left-0.5"}`} />
+                </button>
+              </div>
+
               {[{label:"Profile visibility",desc:"Who can see your profile",value:"Everyone"},{label:"Connection list",desc:"Who can see connections",value:"Connections"},{label:"Email visibility",desc:"Who can see your email",value:"Only me"}].map(({label,desc,value})=>(
                 <div key={label} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div><p className="text-sm font-medium text-foreground">{label}</p><p className="text-xs text-muted-foreground">{desc}</p></div>
