@@ -257,19 +257,19 @@ const Avatar = ({ user, size = "md" }) => {
 
 // ── Stat cards ────────────────────────────────────────────────────
 const StatsRow = ({ connections, requests, suggestions }) => (
-  <div className="grid grid-cols-3 gap-3">
+  <div className="grid grid-cols-3 gap-2 sm:gap-3">
     {[
       { label:"Connections",      value:connections, icon:Users,      color:"text-blue-600 bg-blue-50 dark:bg-blue-950"         },
       { label:"Pending Requests", value:requests,    icon:UserCheck,  color:"text-amber-600 bg-amber-50 dark:bg-amber-950"      },
       { label:"Suggestions",      value:suggestions, icon:UserPlus,   color:"text-violet-600 bg-violet-50 dark:bg-violet-950"   },
     ].map(({ label, value, icon: Icon, color }) => (
-      <div key={label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-          <Icon size={16}/>
+      <div key={label} className="rounded-xl border border-border bg-card p-2 sm:p-4 flex flex-col sm:flex-row items-center sm:items-center gap-1.5 sm:gap-3">
+        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+          <Icon size={14}/>
         </div>
-        <div>
-          <p className="text-xl font-bold text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="text-center sm:text-left min-w-0">
+          <p className="text-base sm:text-xl font-bold text-foreground leading-none">{value}</p>
+          <p className="text-[9px] sm:text-xs text-muted-foreground leading-tight mt-0.5">{label}</p>
         </div>
       </div>
     ))}

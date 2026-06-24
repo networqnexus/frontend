@@ -149,7 +149,7 @@ const Messages = () => {
   const filteredConvs = conversations.filter(c => !search || c.user?.name?.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <MainLayout>
+    <MainLayout hideRightSidebar>
       <div className="rounded-xl border border-border bg-card overflow-hidden flex h-[calc(100vh-7rem)] min-h-[500px]">
 
         {/* Conversation List */}

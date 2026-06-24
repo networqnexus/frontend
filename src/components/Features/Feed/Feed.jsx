@@ -416,15 +416,15 @@ const Feed = () => {
     <MainLayout>
       {toast&&<Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-2">
-          <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl px-2 sm:px-4 py-2">
+          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
             {[{key:"foryou",label:"For You",icon:Sparkles},{key:"following",label:"Following",icon:Users},{key:"trending",label:"Trending",icon:Flame},{key:"saved",label:"Saved",icon:Bookmark}].map(({key,label,icon:Icon})=>(
-              <button key={key} onClick={()=>setFilter(key)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter===key?"bg-muted text-foreground":"text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
-                <Icon size={14}/>{label}
+              <button key={key} onClick={()=>setFilter(key)} className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${filter===key?"bg-muted text-foreground":"text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                <Icon size={12}/>{label}
               </button>
             ))}
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={handleRefresh} className={`text-muted-foreground ${refreshing?"animate-spin":""}`}><RefreshCw size={14}/></Button>
+          <Button variant="ghost" size="icon-sm" onClick={handleRefresh} className={`text-muted-foreground shrink-0 ${refreshing?"animate-spin":""}`}><RefreshCw size={14}/></Button>
         </div>
 
         <CreatePost user={user} onPost={handleNewPost} onError={(msg)=>showToast(msg,"error")}/>
