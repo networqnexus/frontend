@@ -12,7 +12,7 @@ const mainLinks = [
   { label:"Feed",     icon:Home,          path:"/feed"      },
   { label:"Network",  icon:Users,         path:"/network"   },
   { label:"Jobs",     icon:Briefcase,     path:"/jobs"      },
-  { label:"Messages", icon:MessageSquare, path:"/messages"  },
+  { label:"Chats", icon:MessageSquare, path:"/messages"  },
   { label:"Events",   icon:CalendarDays,  path:"/events"    },
   { label:"Projects", icon:Layers,        path:"/projects"  },
 ];
@@ -30,13 +30,13 @@ const bottomLinks = [
   { label:"Help",     icon:HelpCircle, path:"/help"     },
 ];
 
-const PremiumLink = () => {
+const PremiumLink = ({ onNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const active = location.pathname.startsWith("/premium");
   return (
     <button
-      onClick={() => navigate("/premium")}
+      onClick={() => { navigate("/premium"); onNavigate?.(); }}
       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold transition-colors group
         ${active
           ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
@@ -49,13 +49,13 @@ const PremiumLink = () => {
   );
 };
 
-const NavLink = ({ label, icon: Icon, path, badge }) => {
+const NavLink = ({ label, icon: Icon, path, badge, onNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const active   = location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
-    <button onClick={() => navigate(path)}
+    <button onClick={() => { navigate(path); onNavigate?.(); }}
       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group
         ${active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
       <Icon size={16} className={active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}/>
@@ -65,7 +65,7 @@ const NavLink = ({ label, icon: Icon, path, badge }) => {
   );
 };
 
-const Sidebar = memo(() => {
+const Sidebar = memo(({ onNavigate }) => {
   const navigate = useNavigate();
   const { user }  = useAuth();
   const [stats, setStats] = useState(null);
@@ -86,7 +86,7 @@ const Sidebar = memo(() => {
       {/* Profile card */}
       <div
         className="rounded-xl border border-border bg-card p-4 mb-3 cursor-pointer hover:shadow-sm transition-shadow"
-        onClick={() => navigate(`/profile/${user?.username || "me"}`)}
+        onClick={() => { navigate(`/profile/${user?.username || "me"}`); onNavigate?.(); }}
       >
         {/* Avatar + name */}
         <div className="flex items-center gap-3 mb-3">
@@ -109,13 +109,13 @@ const Sidebar = memo(() => {
             <p className="text-sm font-bold text-foreground">
               {stats?.connections ?? user?.connections?.length ?? 0}
             </p>
-            <p className="text-[10px] text-muted-foreground">Connections</p>
+            <p className="text-[10px] lg:text-[8px] xl:text-[10px] text-muted-foreground">Connections</p>
           </div>
           <div className="rounded-lg bg-muted/50 p-2 hover:bg-muted transition-colors">
             <p className="text-sm font-bold text-foreground">
               {stats?.profileViews ?? 0}
             </p>
-            <p className="text-[10px] text-muted-foreground">Profile views</p>
+            <p className="text-[10px] lg:text-[8px] xl:text-[10px] text-muted-foreground">Profile views</p>
           </div>
         </div>
 
@@ -131,23 +131,23 @@ const Sidebar = memo(() => {
 
       {/* Main nav */}
       <div className="flex flex-col gap-0.5">
-        {mainLinks.map(l => <NavLink key={l.path} {...l}/>)}
+        {mainLinks.map(l => <NavLink key={l.path} {...l} onNavigate={onNavigate}/>)}
       </div>
 
       <Separator className="my-2"/>
 
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
-        Tools
+        WorkSpace
       </p>
       <div className="flex flex-col gap-0.5">
-        {toolLinks.map(l => <NavLink key={l.path} {...l}/>)}
+        {toolLinks.map(l => <NavLink key={l.path} {...l} onNavigate={onNavigate}/>)}
       </div>
 
       <Separator className="my-2"/>
 
       <div className="flex flex-col gap-0.5">
-        <PremiumLink />
-        {bottomLinks.map(l => <NavLink key={l.path} {...l}/>)}
+        <PremiumLink onNavigate={onNavigate}/>
+        {bottomLinks.map(l => <NavLink key={l.path} {...l} onNavigate={onNavigate}/>)}
       </div>
     </div>
   );

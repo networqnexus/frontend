@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Zap, Search, Bell, MessageSquare, Home, Users, Briefcase,
-  BarChart2, Menu, X, ChevronDown, Layers, LogOut, User, Settings, Check, CheckCheck, Trash2
+  Radio, X, ChevronDown, Layers, LogOut, User, Settings, Check, CheckCheck, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,15 +16,14 @@ const navItems = [
   { label:"Home",     icon:Home,      path:"/feed"      },
   { label:"Network",  icon:Users,     path:"/network"   },
   { label:"Jobs",     icon:Briefcase, path:"/jobs"      },
-  { label:"Projects", icon:Layers,    path:"/projects"  },
-  { label:"Analytics",icon:BarChart2, path:"/analytics" },
+  { label:"Streaming", icon:Radio,    path:"/streaming"  },
+  { label:"Chat", icon:MessageSquare,    path:"/messages"  },
 ];
 
 const Header = () => {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { user, logout } = useAuth();
-  const [mobileOpen,    setMobileOpen]    = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [notifOpen,     setNotifOpen]     = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -99,11 +98,11 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
+    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border py-1">
+      <div className=" px-5 xl:px-9 mx-auto px-4 h-14 flex items-center gap-10 xl:gap-20 ">
 
         {/* Logo */}
-        <button onClick={() => navigate("/feed")} className="flex items-center gap-2 shrink-0 group">
+        <button onClick={() => navigate("/feed")} className="flex items-center gap-2 shrink-0 group xl:pr-8">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:opacity-80 transition-opacity">
             <Zap size={16} className="text-primary-foreground fill-primary-foreground"/>
           </div>
@@ -111,7 +110,7 @@ const Header = () => {
         </button>
 
         {/* Search */}
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-w-sm min-w-0">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"/>
           <Input placeholder="Search people, posts, jobs..."
             className="pl-8 h-8 text-sm bg-muted/50 border-transparent focus:bg-background"
@@ -161,7 +160,7 @@ const Header = () => {
         </div>
 
         {/* Nav — desktop */}
-        <nav className="hidden lg:flex items-center gap-0.5 mx-2">
+        <nav className="hidden lg:flex items-center lg:gap-0.5 xl:gap-2 mx-2">
           {navItems.map(({ label, icon: Icon, path }) => {
             const active = location.pathname === path;
             return (
@@ -180,10 +179,7 @@ const Header = () => {
           {/* 🌙 Theme toggle */}
           <ThemeToggleButton />
 
-          {/* Messages */}
-          <Button variant="ghost" size="icon-sm" className="relative" onClick={() => navigate("/messages")}>
-            <MessageSquare size={18}/>
-          </Button>
+          
 
           {/* Notifications */}
           <div className="relative">
@@ -333,25 +329,8 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile menu */}
-          <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X size={18}/> : <Menu size={18}/>}
-          </Button>
         </div>
       </div>
-
-      {/* Mobile nav */}
-      {mobileOpen && (
-        <div className="lg:hidden border-t border-border bg-background px-4 py-3 flex gap-2 overflow-x-auto">
-          {navItems.map(({ label, icon: Icon, path }) => (
-            <button key={path} onClick={() => { navigate(path); setMobileOpen(false); }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
-                ${location.pathname===path?"bg-muted text-foreground":"text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
-              <Icon size={16}/>{label}
-            </button>
-          ))}
-        </div>
-      )}
     </header>
   );
 };
