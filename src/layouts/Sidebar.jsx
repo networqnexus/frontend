@@ -30,14 +30,6 @@ const recruiterTools = [
   { label:"HRMS",      icon:Building2,     path:"/hrms",      badge:"Pro" },
   { label:"Analytics", icon:BarChart2,     path:"/analytics"              },
 ];
-// Org owner / admin — full workspace
-const orgTools = [
-  { label:"ATS",       icon:UserCheck,     path:"/ats",       badge:"Pro" },
-  { label:"CRM",       icon:ClipboardList, path:"/crm",       badge:"Pro" },
-  { label:"HRMS",      icon:Building2,     path:"/hrms",      badge:"Pro" },
-  { label:"Streaming", icon:Radio,         path:"/streaming"              },
-  { label:"Analytics", icon:BarChart2,     path:"/analytics"              },
-];
 
 const bottomLinks = [
   { label:"Settings", icon:Settings,   path:"/settings" },
@@ -93,7 +85,11 @@ const Sidebar = memo(({ onNavigate }) => {
   useEffect(() => {
     if (!user) return;
     getStats().then(d => setStats(d.stats)).catch(() => {});
-    getMyOrg().then(d => setMyOrg(d.owned || d.adminOf?.[0] || null)).catch(() => {}).finally(() => setOrgLoaded(true));
+    getMyOrg().then(d => {
+      const org  = d.owned || d.adminOf?.[0] || d.memberOf || null;
+      const role = d.owned ? "Owner" : d.adminOf?.[0] ? "Admin" : d.memberOf ? "Member" : null;
+      setMyOrg(org ? { ...org, myRole: role } : null);
+    }).catch(() => {}).finally(() => setOrgLoaded(true));
   }, [user]);
 
   return (
@@ -183,6 +179,11 @@ const Sidebar = memo(({ onNavigate }) => {
                 {myOrg.logoUrl ? <img src={myOrg.logoUrl} className="w-full h-full object-cover" alt=""/> : <Building2 size={10} className="text-primary"/>}
               </div>
               <span className="flex-1 text-left truncate">{myOrg.name}</span>
+              {myOrg.myRole && (
+                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                  {myOrg.myRole}
+                </span>
+              )}
             </button>
           ) : (
             <button

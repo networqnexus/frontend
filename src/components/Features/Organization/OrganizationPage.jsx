@@ -7,7 +7,7 @@ import useAuth from "@/hooks/useAuth";
 import {
   Building2, MapPin, Globe, Users, Briefcase, Calendar, BadgeCheck,
   Plus, Settings, ExternalLink, Loader2, X, UserPlus, LayoutDashboard,
-  ChevronRight, IndianRupee, Mail, Clock, Trash2
+  ChevronRight, IndianRupee, Mail, Clock
 } from "lucide-react";
 
 const INDUSTRY_COLORS = {
@@ -24,9 +24,11 @@ const OrganizationPage = () => {
   const { user }  = useAuth();
   const [org,         setOrg]         = useState(null);
   const [jobs,        setJobs]        = useState([]);
+  const [members,     setMembers]     = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isOwner,     setIsOwner]     = useState(false);
   const [isAdmin,     setIsAdmin]     = useState(false);
+  const [isMember,    setIsMember]    = useState(false);
   const [loading,     setLoading]     = useState(true);
   const [following,   setFollowing]   = useState(false);
   const [addingAdmin, setAddingAdmin] = useState(false);
@@ -48,9 +50,11 @@ const OrganizationPage = () => {
       const d = await getOrg(slug);
       setOrg(d.org);
       setJobs(d.jobs || []);
+      setMembers(d.members || []);
       setIsFollowing(d.isFollowing);
       setIsOwner(d.isOwner);
       setIsAdmin(d.isAdmin);
+      setIsMember(d.isMember);
       if (d.isOwner || d.isAdmin) {
         getInvites(d.org._id).then(r => setPendingInvites(r.invites || [])).catch(() => {});
       }
@@ -115,6 +119,7 @@ const OrganizationPage = () => {
 
   const industryClass = INDUSTRY_COLORS[org.industry] || INDUSTRY_COLORS.default;
   const canManage = isOwner || isAdmin;
+  const isConnected = isOwner || isAdmin || isMember;
 
   return (
     <MainLayout>
@@ -305,7 +310,10 @@ const OrganizationPage = () => {
                   {org.owner?.avatarUrl ? <img src={org.owner.avatarUrl} className="w-full h-full object-cover" alt=""/> : org.owner?.name?.[0]?.toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-foreground truncate">{org.owner?.name}</p>
+                  <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+                    {org.owner?.name}
+                    {user?.id === org.owner?._id?.toString() && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">You</span>}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">Owner · CEO</p>
                 </div>
                 <button onClick={() => navigate(`/profile/${org.owner?.username}`)} className="text-[10px] text-primary hover:underline shrink-0">View</button>
@@ -318,7 +326,10 @@ const OrganizationPage = () => {
                     {a.avatarUrl ? <img src={a.avatarUrl} className="w-full h-full object-cover" alt=""/> : a.name?.[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">{a.name}</p>
+                    <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+                      {a.name}
+                      {user?.id === a._id?.toString() && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">You</span>}
+                    </p>
                     <p className="text-[10px] text-muted-foreground">HR / Admin</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -330,7 +341,24 @@ const OrganizationPage = () => {
                 </div>
               ))}
 
-              {(!org.admins?.length) && (
+              {/* Invite-accepted members — visible only to connected users */}
+              {isConnected && members.map(m => (
+                <div key={m._id} className="flex items-center gap-2.5 py-2 border-t border-border/50">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary overflow-hidden shrink-0">
+                    {m.avatarUrl ? <img src={m.avatarUrl} className="w-full h-full object-cover" alt=""/> : m.name?.[0]?.toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+                      {m.name}
+                      {user?.id === m._id?.toString() && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">You</span>}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{m.inviteRole === "hr" ? "HR Manager" : m.inviteRole === "admin" ? "Admin" : "Employee"}</p>
+                  </div>
+                  <button onClick={() => navigate(`/profile/${m.username}`)} className="text-[10px] text-primary hover:underline shrink-0">View</button>
+                </div>
+              ))}
+
+              {(!org.admins?.length && (!isConnected || !members.length)) && (
                 <p className="text-xs text-muted-foreground text-center py-2">{isOwner ? "Add your HR team above" : "No other team members yet"}</p>
               )}
             </div>
