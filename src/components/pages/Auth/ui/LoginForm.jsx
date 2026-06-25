@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,10 @@ import { login, googleLogin } from "@/api/authApi";
 import useAuth from "@/hooks/useAuth";
 
 const LoginForm = () => {
-  const navigate         = useNavigate();
-  const { saveSession }  = useAuth();
+  const navigate          = useNavigate();
+  const [searchParams]    = useSearchParams();
+  const { saveSession }   = useAuth();
+  const nextPath          = searchParams.get("next") || "/feed";
 
   const [showPassword,  setShowPassword]  = useState(false);
   const [email,         setEmail]         = useState("");
@@ -26,7 +28,7 @@ const LoginForm = () => {
       const data = await login({ email, password });
       saveSession(data.token, data.user);
       if (!data.user.onboardingCompleted) navigate("/onboarding");
-      else navigate("/feed");
+      else navigate(nextPath);
     } catch (err) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
@@ -41,7 +43,7 @@ const LoginForm = () => {
       const data = await googleLogin({ credential: credentialResponse.credential });
       saveSession(data.token, data.user);
       if (!data.user.onboardingCompleted) navigate("/onboarding");
-      else navigate("/feed");
+      else navigate(nextPath);
     } catch (err) {
       setError(err.message || "Google login failed");
     } finally {

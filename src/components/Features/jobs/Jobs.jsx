@@ -174,13 +174,13 @@ const PostJobModal = ({ onClose, onPosted }) => {
             <div><label className="text-xs font-medium text-foreground mb-1 block">Salary</label><Input placeholder="e.g. ₹8–12 LPA" value={form.salary} onChange={e => set("salary", e.target.value)}/></div>
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Job Type</label>
-              <select value={form.type} onChange={e => set("type", e.target.value)} className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-transparent text-foreground outline-none focus:ring-1 focus:ring-ring">
+              <select value={form.type} onChange={e => set("type", e.target.value)} className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none focus:ring-1 focus:ring-ring">
                 {POST_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Experience Level</label>
-              <select value={form.level} onChange={e => set("level", e.target.value)} className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-transparent text-foreground outline-none focus:ring-1 focus:ring-ring">
+              <select value={form.level} onChange={e => set("level", e.target.value)} className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none focus:ring-1 focus:ring-ring">
                 {POST_LEVELS.map(l => <option key={l}>{l}</option>)}
               </select>
             </div>
@@ -681,10 +681,10 @@ const Jobs = () => {
             </div>
             {showFilters && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                <select value={typeFilter}  onChange={e => setTypeFilter(e.target.value)}  className="h-7 text-xs px-2 rounded-lg border border-input bg-transparent text-foreground outline-none">
+                <select value={typeFilter}  onChange={e => setTypeFilter(e.target.value)}  className="h-7 text-xs px-2 rounded-lg border border-input bg-background text-foreground outline-none">
                   {JOB_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
-                <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="h-7 text-xs px-2 rounded-lg border border-input bg-transparent text-foreground outline-none">
+                <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="h-7 text-xs px-2 rounded-lg border border-input bg-background text-foreground outline-none">
                   {LEVELS.map(l => <option key={l}>{l}</option>)}
                 </select>
               </div>

@@ -16,8 +16,12 @@ import CRM        from "@/components/Features/CRM/CRM";
 import HRMS       from "@/components/Features/HRMS/HRMS";
 import Settings   from "@/components/Features/Settings/Settings";
 import Analytics  from "@/components/Features/Analytics/Analytics";
-import Projects   from "@/components/Features/Projects/Projects";
-import Streaming   from "@/components/Features/Streaming/Streaming";
+import Projects          from "@/components/Features/Projects/Projects";
+import Streaming          from "@/components/Features/Streaming/Streaming";
+import OrganizationPage   from "@/components/Features/Organization/OrganizationPage";
+import OrgWorkspace       from "@/components/Features/Organization/OrgWorkspace";
+import OrgSettings        from "@/components/Features/Organization/OrgSettings";
+import InviteAcceptPage   from "@/components/Features/Organization/InviteAcceptPage";
 import HelpCenter  from "@/components/Features/HelpCenter/HelpCenter";
 import Events        from "@/components/Features/Events/Events";
 import PricingPage         from "@/components/Features/Premium/PricingPage";
@@ -85,6 +89,12 @@ export default function AppRoutes() {
       <Route path="/hrms" element={<ProtectedRoute><HRMS/></ProtectedRoute>}/>
 
       <Route path="/help" element={<ProtectedRoute><HelpCenter/></ProtectedRoute>}/>
+
+      <Route path="/org/:slug"           element={<ProtectedRoute><OrganizationPage/></ProtectedRoute>}/>
+      <Route path="/org/:slug/workspace" element={<ProtectedRoute><OrgWorkspace/></ProtectedRoute>}/>
+      <Route path="/org/:slug/settings"  element={<ProtectedRoute><OrgSettings/></ProtectedRoute>}/>
+      <Route path="/invite/:token"       element={<InviteAcceptPage/>}/>
+
       <Route path="*"   element={<Navigate to="/" replace/>}/>
     </Routes>
   );

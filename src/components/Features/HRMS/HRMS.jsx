@@ -46,7 +46,7 @@ const AddEmployeeModal = ({ onClose, onAdd }) => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs font-medium text-foreground">Department</label>
-              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-transparent text-foreground outline-none" value={form.department} onChange={e=>set("department",e.target.value)}>
+              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none" value={form.department} onChange={e=>set("department",e.target.value)}>
                 {DEPTS.slice(1).map(d=><option key={d}>{d}</option>)}
               </select>
             </div>
@@ -147,7 +147,7 @@ const HRMS = () => {
                 <Input placeholder="Search…" className="pl-8 h-8 text-sm w-40" value={search} onChange={e=>setSearch(e.target.value)}/>
               </div>
               {tab==="employees" && (
-                <select value={dept} onChange={e=>setDept(e.target.value)} className="h-8 text-xs px-2 rounded-lg border border-input bg-transparent text-foreground outline-none">
+                <select value={dept} onChange={e=>setDept(e.target.value)} className="h-8 text-xs px-2 rounded-lg border border-input bg-background text-foreground outline-none">
                   {DEPTS.map(d=><option key={d}>{d}</option>)}
                 </select>
               )}
