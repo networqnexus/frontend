@@ -53,12 +53,12 @@ const AddLeadModal = ({ onClose, onAdd }) => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs font-medium text-foreground">Stage</label>
-              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-transparent text-foreground outline-none" value={form.stage} onChange={e=>set("stage",e.target.value)}>
+              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none" value={form.stage} onChange={e=>set("stage",e.target.value)}>
                 {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
             <div><label className="text-xs font-medium text-foreground">Priority</label>
-              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-transparent text-foreground outline-none" value={form.priority} onChange={e=>set("priority",e.target.value)}>
+              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none" value={form.priority} onChange={e=>set("priority",e.target.value)}>
                 {["low","medium","high","urgent"].map(p=><option key={p} value={p} className="capitalize">{p}</option>)}
               </select>
             </div>

@@ -2,11 +2,13 @@ import { useEffect, useState, memo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home, Users, Briefcase, MessageSquare, Layers, BarChart2,
-  UserCheck, ClipboardList, Building2, Radio, Settings, HelpCircle, CalendarDays, Crown
+  UserCheck, ClipboardList, Building2, Radio, Settings, HelpCircle, CalendarDays, Crown, Plus
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import useAuth from "@/hooks/useAuth";
 import { getStats } from "@/api/profileApi";
+import { getMyOrg } from "@/api/orgApi";
+import CreateOrgModal from "@/components/Features/Organization/CreateOrgModal";
 
 const mainLinks = [
   { label:"Feed",     icon:Home,          path:"/feed"      },
@@ -17,12 +19,24 @@ const mainLinks = [
   { label:"Projects", icon:Layers,        path:"/projects"  },
 ];
 
-const toolLinks = [
-  { label:"ATS",       icon:UserCheck,    path:"/ats",       badge:"Pro" },
-  { label:"CRM",       icon:ClipboardList,path:"/crm",       badge:"Pro" },
-  { label:"HRMS",      icon:Building2,    path:"/hrms",      badge:"Pro" },
-  { label:"Streaming", icon:Radio,        path:"/streaming"              },
-  { label:"Analytics", icon:BarChart2,    path:"/analytics"              },
+// Employee (default) — Analytics only
+const employeeTools = [
+  { label:"Analytics", icon:BarChart2, path:"/analytics" },
+];
+// Recruiter / HR (no org) — hiring + analytics tools
+const recruiterTools = [
+  { label:"ATS",       icon:UserCheck,     path:"/ats",       badge:"Pro" },
+  { label:"CRM",       icon:ClipboardList, path:"/crm",       badge:"Pro" },
+  { label:"HRMS",      icon:Building2,     path:"/hrms",      badge:"Pro" },
+  { label:"Analytics", icon:BarChart2,     path:"/analytics"              },
+];
+// Org owner / admin — full workspace
+const orgTools = [
+  { label:"ATS",       icon:UserCheck,     path:"/ats",       badge:"Pro" },
+  { label:"CRM",       icon:ClipboardList, path:"/crm",       badge:"Pro" },
+  { label:"HRMS",      icon:Building2,     path:"/hrms",      badge:"Pro" },
+  { label:"Streaming", icon:Radio,         path:"/streaming"              },
+  { label:"Analytics", icon:BarChart2,     path:"/analytics"              },
 ];
 
 const bottomLinks = [
@@ -66,18 +80,20 @@ const NavLink = ({ label, icon: Icon, path, badge, onNavigate }) => {
 };
 
 const Sidebar = memo(({ onNavigate }) => {
-  const navigate = useNavigate();
-  const { user }  = useAuth();
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const { user, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState(null);
+  const [myOrg, setMyOrg] = useState(null);
+  const [orgLoaded, setOrgLoaded] = useState(false);
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
 
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
-  // Fetch real stats from API
   useEffect(() => {
     if (!user) return;
-    getStats()
-      .then(d => setStats(d.stats))
-      .catch(() => {});
+    getStats().then(d => setStats(d.stats)).catch(() => {});
+    getMyOrg().then(d => setMyOrg(d.owned || d.adminOf?.[0] || null)).catch(() => {}).finally(() => setOrgLoaded(true));
   }, [user]);
 
   return (
@@ -136,19 +152,61 @@ const Sidebar = memo(({ onNavigate }) => {
 
       <Separator className="my-2"/>
 
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
-        WorkSpace
-      </p>
-      <div className="flex flex-col gap-0.5">
-        {toolLinks.map(l => <NavLink key={l.path} {...l} onNavigate={onNavigate}/>)}
-      </div>
+      {/* WorkSpace — role-based only, wait for auth to verify */}
+      {!authLoading && orgLoaded && (() => {
+        const activeTools = (user?.role === "recruiter" || user?.role === "hr")
+          ? recruiterTools
+          : employeeTools;
+        return (
+          <>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">WorkSpace</p>
+            <div className="flex flex-col gap-0.5">
+              {activeTools.map(l => <NavLink key={l.path} {...l} onNavigate={onNavigate}/>)}
+            </div>
+            <Separator className="my-2"/>
+          </>
+        );
+      })()}
 
-      <Separator className="my-2"/>
+      {/* Organization section */}
+      {orgLoaded && (
+        <>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">Organization</p>
+          {myOrg ? (
+            <button
+              onClick={() => { navigate(`/org/${myOrg.slug}`); onNavigate?.(); }}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group
+                ${location.pathname.startsWith(`/org/${myOrg.slug}`)
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+              <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
+                {myOrg.logoUrl ? <img src={myOrg.logoUrl} className="w-full h-full object-cover" alt=""/> : <Building2 size={10} className="text-primary"/>}
+              </div>
+              <span className="flex-1 text-left truncate">{myOrg.name}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowCreateOrg(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors group">
+              <Plus size={16} className="text-muted-foreground group-hover:text-foreground"/>
+              <span className="flex-1 text-left">Create Organization</span>
+            </button>
+          )}
+          <Separator className="my-2"/>
+        </>
+      )}
 
       <div className="flex flex-col gap-0.5">
         <PremiumLink onNavigate={onNavigate}/>
         {bottomLinks.map(l => <NavLink key={l.path} {...l} onNavigate={onNavigate}/>)}
       </div>
+
+      {showCreateOrg && (
+        <CreateOrgModal
+          onClose={() => setShowCreateOrg(false)}
+          onCreated={(org) => { setMyOrg(org); setShowCreateOrg(false); }}
+        />
+      )}
     </div>
   );
 });

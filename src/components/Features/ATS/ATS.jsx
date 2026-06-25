@@ -58,12 +58,12 @@ const AddCandidateModal = ({ onClose, onAdd }) => {
           <div><label className="text-xs font-medium text-foreground">Skills (comma separated)</label><Input className="mt-1" placeholder="React, Node.js" value={form.skills} onChange={e=>set("skills",e.target.value)}/></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs font-medium text-foreground">Stage</label>
-              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-transparent text-foreground outline-none focus:border-ring" value={form.stage} onChange={e=>set("stage",e.target.value)}>
+              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none focus:border-ring" value={form.stage} onChange={e=>set("stage",e.target.value)}>
                 {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
             <div><label className="text-xs font-medium text-foreground">Rating</label>
-              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-transparent text-foreground outline-none" value={form.rating} onChange={e=>set("rating",Number(e.target.value))}>
+              <select className="w-full mt-1 h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none" value={form.rating} onChange={e=>set("rating",Number(e.target.value))}>
                 {[1,2,3,4,5].map(n=><option key={n} value={n}>{"⭐".repeat(n)}</option>)}
               </select>
             </div>

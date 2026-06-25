@@ -28,6 +28,7 @@ const Settings = () => {
     location:user?.location||"", website:user?.website||"",
     contactNumber:user?.contactNumber||"", openToWork:user?.openToWork||false,
     skills:user?.skills?.join(", ")||"",
+    role:user?.role||"employee",
   });
 
   const [passwords, setPasswords] = useState({ currentPassword:"", newPassword:"", confirmPassword:"" });
@@ -121,6 +122,28 @@ const Settings = () => {
                 <div><label className="text-xs font-medium text-foreground">Website</label><Input className="mt-1" value={profile.website} onChange={e=>setProfile(p=>({...p,website:e.target.value}))}/></div>
               </div>
               <div><label className="text-xs font-medium text-foreground">Skills (comma separated)</label><Input className="mt-1" value={profile.skills} onChange={e=>setProfile(p=>({...p,skills:e.target.value}))}/></div>
+
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1.5">Account Type</label>
+                <p className="text-[11px] text-muted-foreground mb-2">This controls which workspace tools are visible to you in the sidebar.</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value:"employee",  label:"Employee",  desc:"Job seeker / Professional" },
+                    { value:"recruiter", label:"Recruiter", desc:"Hiring manager / Talent" },
+                    { value:"hr",        label:"HR",        desc:"HR professional / Manager" },
+                  ].map(r => (
+                    <button key={r.value} type="button" onClick={() => setProfile(p=>({...p,role:r.value}))}
+                      className={`flex flex-col items-start p-3 rounded-xl border text-left transition-colors
+                        ${profile.role===r.value
+                          ? "border-primary bg-primary/5 text-foreground"
+                          : "border-border bg-transparent text-muted-foreground hover:border-primary/50"}`}>
+                      <span className="text-xs font-semibold">{r.label}</span>
+                      <span className="text-[10px] mt-0.5 leading-tight">{r.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800">
                 <div><p className="text-sm font-medium text-foreground">Open to Work</p><p className="text-xs text-muted-foreground">Let recruiters know</p></div>
                 <button onClick={()=>setProfile(p=>({...p,openToWork:!p.openToWork}))} className={`w-10 h-5 rounded-full transition-colors relative ${profile.openToWork?"bg-emerald-500":"bg-muted"}`}>
@@ -206,7 +229,7 @@ const Settings = () => {
               {[{label:"Profile visibility",desc:"Who can see your profile",value:"Everyone"},{label:"Connection list",desc:"Who can see connections",value:"Connections"},{label:"Email visibility",desc:"Who can see your email",value:"Only me"}].map(({label,desc,value})=>(
                 <div key={label} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div><p className="text-sm font-medium text-foreground">{label}</p><p className="text-xs text-muted-foreground">{desc}</p></div>
-                  <select className="text-xs px-2 py-1 rounded-lg border border-input bg-transparent text-foreground outline-none">
+                  <select className="text-xs px-2 py-1 rounded-lg border border-input bg-background text-foreground outline-none">
                     <option>{value}</option><option>Everyone</option><option>Connections</option><option>Only me</option>
                   </select>
                 </div>
