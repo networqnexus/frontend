@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,8 +62,8 @@ const CreateOrgModal = ({ onClose, onCreated }) => {
     setSaving(false);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
       <div className="bg-card rounded-2xl border border-border w-full max-w-xl shadow-2xl max-h-[92vh] flex flex-col">
 
         {/* Header */}
@@ -82,7 +83,7 @@ const CreateOrgModal = ({ onClose, onCreated }) => {
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
+        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4 scrollbar-hide">
 
           {/* Cover image */}
           <div>
@@ -173,7 +174,8 @@ const CreateOrgModal = ({ onClose, onCreated }) => {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

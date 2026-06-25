@@ -1,28 +1,30 @@
 import { memo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, UserPlus, ChevronRight, ExternalLink } from "lucide-react";
+import { TrendingUp, UserPlus, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { getSuggestions } from "@/api/networkApi";
-import { sendRequest } from "@/api/networkApi";
+import { getSuggestions, sendRequest } from "@/api/networkApi";
+import { getTrendingHashtags } from "@/api/postApi";
 
-const TRENDING = [
-  { tag: "#OpenToWork",     posts: "4.2k posts" },
-  { tag: "#ReactJS",        posts: "2.8k posts" },
-  { tag: "#AIEngineering",  posts: "6.1k posts" },
-  { tag: "#IndianStartups", posts: "1.9k posts" },
-  { tag: "#RemoteJobs",     posts: "3.4k posts" },
-];
+const formatCount = (n) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k posts` : `${n} post${n !== 1 ? "s" : ""}`;
 
 const RightSidebar = memo(() => {
   const navigate = useNavigate();
   const [suggestions, setSuggestions] = useState([]);
   const [sent, setSent] = useState({});
+  const [trending, setTrending] = useState(null);
 
   useEffect(() => {
     getSuggestions()
       .then(d => setSuggestions((d.users || []).slice(0, 3)))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const fetchTrending = () =>
+      getTrendingHashtags().then(d => setTrending(d.trending || [])).catch(() => {});
+    fetchTrending();
+    const id = setInterval(fetchTrending, 2 * 60 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   const handleConnect = async (id) => {
@@ -72,14 +74,27 @@ const RightSidebar = memo(() => {
           <TrendingUp size={14} className="text-muted-foreground shrink-0" />
           <h3 className="text-sm lg:text-xs xl:text-sm font-semibold text-foreground">Trending in your network</h3>
         </div>
-        <div className="flex flex-col gap-1">
-          {TRENDING.map(t => (
-            <button key={t.tag} className="flex items-center justify-between group hover:bg-muted/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors">
-              <span className="text-sm lg:text-xs xl:text-sm font-medium text-foreground group-hover:text-primary transition-colors">{t.tag}</span>
-              <span className="text-xs text-muted-foreground shrink-0 ml-1">{t.posts}</span>
-            </button>
-          ))}
-        </div>
+        {trending === null ? (
+          <div className="flex flex-col gap-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5">
+                <div className="h-3 w-28 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-14 rounded bg-muted animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : trending.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-1">No trending hashtags yet. Start posting!</p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {trending.map(t => (
+              <button key={t.tag} className="flex items-center justify-between group hover:bg-muted/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors">
+                <span className="text-sm lg:text-xs xl:text-sm font-medium text-foreground group-hover:text-primary transition-colors">{t.tag}</span>
+                <span className="text-xs text-muted-foreground shrink-0 ml-1">{formatCount(t.count)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

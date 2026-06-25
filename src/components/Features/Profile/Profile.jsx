@@ -180,8 +180,12 @@ const Profile = () => {
 
             {isOwnProfile && (
               <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
-                {[{icon:Eye,label:"Profile views",value:profile.profileViews||0},{icon:Users,label:"Connections",value:profile.connections?.length||0},{icon:Star,label:"Posts",value:posts.length}].map(({icon:Icon,label,value})=>(
-                  <div key={label} className="flex items-center gap-2 cursor-pointer group">
+                {[
+                  {icon:Eye,  label:"Profile views", value:profile.profileViews||0,        onClick:()=>navigate("/analytics")},
+                  {icon:Users,label:"Connections",   value:profile.connections?.length||0,  onClick:()=>navigate("/network")},
+                  {icon:Star, label:"Posts",         value:posts.length,                    onClick:()=>setTab("posts")},
+                ].map(({icon:Icon,label,value,onClick})=>(
+                  <div key={label} onClick={onClick} className="flex items-center gap-2 cursor-pointer group">
                     <Icon size={15} className="text-muted-foreground group-hover:text-primary transition-colors"/>
                     <div><p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{value}</p><p className="text-[10px] text-muted-foreground">{label}</p></div>
                   </div>
