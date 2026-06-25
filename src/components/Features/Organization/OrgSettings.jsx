@@ -7,7 +7,7 @@ import { getOrg, updateOrg, deleteOrg } from "@/api/orgApi";
 import useAuth from "@/hooks/useAuth";
 import {
   Building2, ArrowLeft, Camera, Loader2, Check, X, Trash2,
-  BadgeCheck, AlertTriangle, Upload
+  BadgeCheck, AlertTriangle, Upload, Plus
 } from "lucide-react";
 
 const INDUSTRIES = [
@@ -52,8 +52,9 @@ const OrgSettings = () => {
   const [form, setForm] = useState({
     name: "", tagline: "", description: "",
     industry: "", location: "", size: "",
-    foundedYear: "", website: "",
+    foundedYear: "", website: "", services: [],
   });
+  const [serviceInput, setServiceInput] = useState("");
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -78,6 +79,7 @@ const OrgSettings = () => {
         size:        o.size        || "",
         foundedYear: o.foundedYear || "",
         website:     o.website     || "",
+        services:    o.services    || [],
       });
     }).catch(() => navigate("/feed")).finally(() => setLoading(false));
   }, [slug]);
@@ -94,7 +96,10 @@ const OrgSettings = () => {
     setSaving(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => { if (v !== "") fd.append(k, v); });
+      Object.entries(form).forEach(([k, v]) => {
+        if (Array.isArray(v)) { v.forEach(item => fd.append(k, item)); }
+        else if (v !== "") fd.append(k, v);
+      });
       if (logoFile)  fd.append("logo",  logoFile);
       if (coverFile) fd.append("cover", coverFile);
       const d = await updateOrg(org._id, fd);
@@ -221,6 +226,47 @@ const OrgSettings = () => {
 
           <Field label="Website">
             <Input value={form.website} onChange={e => set("website", e.target.value)} placeholder="https://yourcompany.com"/>
+          </Field>
+
+          <Field label="Services" hint="Services your organization offers (press Enter or click + to add)">
+            <div className="flex gap-2 mb-2">
+              <Input
+                value={serviceInput}
+                onChange={e => setServiceInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && serviceInput.trim()) {
+                    e.preventDefault();
+                    const trimmed = serviceInput.trim();
+                    if (!form.services.includes(trimmed)) set("services", [...form.services, trimmed]);
+                    setServiceInput("");
+                  }
+                }}
+                placeholder="e.g. Web Development, Cloud Consulting"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmed = serviceInput.trim();
+                  if (trimmed && !form.services.includes(trimmed)) set("services", [...form.services, trimmed]);
+                  setServiceInput("");
+                }}
+                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-input bg-muted hover:bg-muted/80 text-foreground transition-colors">
+                <Plus size={14}/>
+              </button>
+            </div>
+            {form.services.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {form.services.map((s, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20">
+                    {s}
+                    <button type="button" onClick={() => set("services", form.services.filter((_, idx) => idx !== i))}
+                      className="ml-0.5 hover:text-destructive transition-colors">
+                      <X size={11}/>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </Field>
 
           <Button onClick={handleSave} disabled={saving} className="gap-2 w-fit">
