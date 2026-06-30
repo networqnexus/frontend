@@ -1,6 +1,7 @@
 import { apiRequest } from "./config";
 
 export const getPosts           = (page = 1) => apiRequest("GET",    `/posts?page=${page}`);
+export const getPost            = (id)       => apiRequest("GET",    `/posts/${id}`);
 export const getTrendingHashtags = ()        => apiRequest("GET",    "/posts/trending");
 export const getMyPosts     = ()         => apiRequest("GET",    "/posts/my");
 export const getSavedPosts  = ()         => apiRequest("GET",    "/posts/saved");

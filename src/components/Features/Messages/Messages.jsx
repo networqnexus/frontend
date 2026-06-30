@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,69 @@ import { io } from "socket.io-client";
 
 let socket;
 
+const SharedPostCard = ({ data, onOpen }) => {
+  let p;
+  try { p = typeof data === "string" ? JSON.parse(data) : data; }
+  catch { return <span className="text-xs opacity-70">Shared a post</span>; }
+  return (
+    <div onClick={() => onOpen?.(p.id)}
+      className="rounded-xl border border-border bg-card overflow-hidden cursor-pointer hover:opacity-90 transition-opacity w-full max-w-[260px]">
+      <div className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary overflow-hidden shrink-0">
+            {p.authorAvatar
+              ? <img src={p.authorAvatar} className="w-full h-full object-cover" alt=""/>
+              : p.authorName?.[0]?.toUpperCase()}
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground leading-tight">{p.authorName}</p>
+            <p className="text-[10px] text-muted-foreground">Post on Nexus</p>
+          </div>
+        </div>
+        {p.content && (
+          <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3">{p.content}</p>
+        )}
+      </div>
+      <div className="px-3 py-1.5 border-t border-border/50 bg-muted/40 flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground">Nexus</span>
+        <span className="text-[10px] text-primary font-medium">View post →</span>
+      </div>
+    </div>
+  );
+};
+
+const renderMessageText = (text, navigate, isMe) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  const linkClass = `underline font-medium break-all ${isMe ? "text-primary-foreground/80 hover:text-primary-foreground" : "text-primary hover:text-primary/80"}`;
+  return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part)) {
+      const postMatch = part.match(/\/post\/([a-f0-9]{24})/);
+      if (postMatch) {
+        return (
+          <a key={i} href={part}
+            onClick={(e) => { e.preventDefault(); navigate(`/post/${postMatch[1]}`); }}
+            className={linkClass}>
+            {part}
+          </a>
+        );
+      }
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+          className={linkClass}>
+          {part}
+        </a>
+      );
+    }
+    return part || null;
+  });
+};
+
 const Messages = () => {
-  const { user } = useAuth();
+  const { user }     = useAuth();
+  const location     = useLocation();
+  const navigate     = useNavigate();
+  const [pendingShare, setPendingShare] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const activeConvRef = useRef(null);
@@ -62,6 +124,12 @@ const Messages = () => {
   }, [user]);
 
   useEffect(() => {
+    if (location.state?.sharePost) {
+      setPendingShare(location.state.sharePost);
+    }
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
@@ -88,19 +156,36 @@ const Messages = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !activeConv) return;
+    if ((!input.trim() && !pendingShare) || !activeConv) return;
     setSending(true);
-    const text = input.trim();
-    setInput("");
     socket.emit("stop_typing", { receiverId: activeConv.user._id, senderId: user?.id });
-    try {
-      const data = await sendMessage(activeConv.user._id, text);
-      setMessages(prev => [...prev, data.message]);
-      setConversations(prev => prev.map(c =>
-        c.user._id === activeConv.user._id ? { ...c, lastMessage: data.message } : c
-      ));
-      socket.emit("send_message", { receiverId: activeConv.user._id, senderId: user?.id, ...data.message });
-    } catch {}
+
+    if (input.trim()) {
+      const text = input.trim();
+      setInput("");
+      try {
+        const data = await sendMessage(activeConv.user._id, text);
+        setMessages(prev => [...prev, data.message]);
+        setConversations(prev => prev.map(c =>
+          c.user._id === activeConv.user._id ? { ...c, lastMessage: data.message } : c
+        ));
+        socket.emit("send_message", { receiverId: activeConv.user._id, senderId: user?.id, ...data.message });
+      } catch {}
+    }
+
+    if (pendingShare) {
+      const shareText = `NEXUS_SHARE:${JSON.stringify(pendingShare)}`;
+      setPendingShare(null);
+      try {
+        const data = await sendMessage(activeConv.user._id, shareText);
+        setMessages(prev => [...prev, data.message]);
+        setConversations(prev => prev.map(c =>
+          c.user._id === activeConv.user._id ? { ...c, lastMessage: { ...data.message, text: "📎 Shared a post" } } : c
+        ));
+        socket.emit("send_message", { receiverId: activeConv.user._id, senderId: user?.id, ...data.message });
+      } catch {}
+    }
+
     setSending(false);
   };
 
@@ -155,6 +240,11 @@ const Messages = () => {
         {/* Conversation List */}
         <div className={`w-full lg:w-72 xl:w-80 shrink-0 border-r border-border flex flex-col ${mobileView === "chat" ? "hidden lg:flex" : "flex"}`}>
           <div className="p-3 border-b border-border">
+            {pendingShare && !activeConv && (
+              <div className="mb-2 px-2.5 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary font-medium">
+                📎 Select a conversation to share this post
+              </div>
+            )}
             <h2 className="text-sm font-semibold text-foreground mb-2">Messages</h2>
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -192,7 +282,11 @@ const Messages = () => {
                     </p>
                     <div className="flex items-center justify-between mt-0.5">
                       <p className={`text-xs truncate ${conv.unread > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                        {conv.lastMessage ? conv.lastMessage.text : "Start a conversation"}
+                        {conv.lastMessage
+                        ? conv.lastMessage.text?.startsWith("NEXUS_SHARE:")
+                          ? "📎 Shared a post"
+                          : conv.lastMessage.text
+                        : "Start a conversation"}
                       </p>
                       {conv.unread > 0 && <span className="ml-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center text-[9px] font-bold text-primary-foreground shrink-0">{conv.unread}</span>}
                     </div>
@@ -253,9 +347,16 @@ const Messages = () => {
                   return (
                     <div key={msg._id || i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-                        <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>
-                          {msg.text}
-                        </div>
+                        {msg.text?.startsWith("NEXUS_SHARE:") ? (
+                          <SharedPostCard
+                            data={msg.text.slice("NEXUS_SHARE:".length)}
+                            onOpen={(postId) => navigate(`/post/${postId}`)}
+                          />
+                        ) : (
+                          <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>
+                            {renderMessageText(msg.text, navigate, isMe)}
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 px-1">
                           <span className="text-[10px] text-muted-foreground">{timeAgo(msg.createdAt)}</span>
                           {isMe && (
@@ -285,11 +386,27 @@ const Messages = () => {
                 <div ref={bottomRef} />
               </div>
 
+              {/* Pending share preview */}
+              {pendingShare && (
+                <div className="px-4 pt-3 pb-2 border-t border-border bg-muted/20 shrink-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] text-muted-foreground font-medium">📎 Sharing post</p>
+                    <button onClick={() => setPendingShare(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <X size={13}/>
+                    </button>
+                  </div>
+                  <SharedPostCard data={pendingShare}/>
+                </div>
+              )}
+
               {/* Input */}
               <div className="px-4 py-3 border-t border-border flex items-center gap-2 shrink-0">
-                <Input placeholder="Write a message…" className="flex-1 h-9 text-sm" value={input} onChange={handleTyping}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} />
-                <Button size="icon-sm" disabled={!input.trim() || sending} onClick={handleSend}>
+                <Input
+                  placeholder={pendingShare ? "Add a message (optional)…" : "Write a message…"}
+                  className="flex-1 h-9 text-sm" value={input} onChange={handleTyping}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                />
+                <Button size="icon-sm" disabled={(!input.trim() && !pendingShare) || sending} onClick={handleSend}>
                   {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 </Button>
               </div>
