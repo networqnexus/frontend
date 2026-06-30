@@ -64,8 +64,8 @@ const Analytics = () => {
     return { label: d.toLocaleDateString("en",{weekday:"short"}), value: found?.count||0, likes: found?.likes||0 };
   });
 
-  const topPosts = [...posts].sort((a,b)=>b.likes?.length-a.likes?.length).slice(0,5);
-  const totalReach = posts.reduce((s,p)=>s+(p.likes?.length||0)+(p.comments?.length||0),0);
+  const topPosts = [...posts].sort((a,b)=>b.reactions?.length-a.reactions?.length).slice(0,5);
+  const totalReach = posts.reduce((s,p)=>s+(p.reactions?.length||0)+(p.comments?.length||0),0);
 
   return (
     <MainLayout>
@@ -148,7 +148,7 @@ const Analytics = () => {
                     <p className="text-xs text-muted-foreground mt-0.5">{new Date(post.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-center"><p className="text-sm font-bold text-foreground">{post.likes?.length||0}</p><p className="text-[10px] text-muted-foreground">likes</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-foreground">{post.reactions?.length||0}</p><p className="text-[10px] text-muted-foreground">likes</p></div>
                     <div className="text-center"><p className="text-sm font-bold text-foreground">{post.comments?.length||0}</p><p className="text-[10px] text-muted-foreground">comments</p></div>
                   </div>
                 </div>
