@@ -20,7 +20,7 @@ export const updateOrgCandRating = (orgId, id, rating) => apiRequest("PUT", `${B
 export const updateOrgCandNotes  = (orgId, id, notes)  => apiRequest("PUT", `${B}/${orgId}/ats/candidates/${id}/notes`, { notes });
 export const deleteOrgCandidate  = (orgId, id)  => apiRequest("DELETE",  `${B}/${orgId}/ats/candidates/${id}`);
 
-// Workspace — CRM
+// Workspace — CRM hello there
 export const getOrgLeads    = (orgId, p={}) => apiRequest("GET",    `${B}/${orgId}/crm/leads?${new URLSearchParams(p)}`);
 export const addOrgLead     = (orgId, d)    => apiRequest("POST",   `${B}/${orgId}/crm/leads`, d);
 export const updateOrgLead  = (orgId, id, d) => apiRequest("PUT",   `${B}/${orgId}/crm/leads/${id}`, d);
