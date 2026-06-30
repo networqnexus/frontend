@@ -98,7 +98,7 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border py-1">
+    <header className="sticky top-0 z-50 bg-primary dark:bg-background/95 backdrop-blur-sm border-b border-primary/20 dark:border-border py-1">
       <div className=" px-5 xl:px-9 mx-auto px-4 h-14 flex items-center gap-10 xl:gap-20 ">
 
         {/* Logo */}
@@ -106,16 +106,16 @@ const Header = () => {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:opacity-80 transition-opacity">
             <Zap size={16} className="text-primary-foreground fill-primary-foreground"/>
           </div>
-          <span className="font-semibold text-sm text-foreground hidden sm:block">Networq Nexus</span>
+          <span className="font-semibold text-sm text-primary-foreground dark:text-foreground hidden sm:block">Networq Nexus</span>
         </button>
 
         {/* Search */}
         <div className="relative flex-1 max-w-sm min-w-0">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"/>
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/60 dark:text-muted-foreground pointer-events-none"/>
           <Input placeholder="Search people, posts, jobs..."
-            className="pl-8 h-8 text-sm bg-muted/50 border-transparent focus:bg-background"
+            className="pl-8 h-8 text-sm bg-white/15 dark:bg-muted/50 border-transparent text-white dark:text-foreground placeholder:text-white/50 dark:placeholder:text-muted-foreground focus:bg-white/25 dark:focus:bg-background"
             value={searchQuery} onChange={e => handleSearch(e.target.value)}/>
-          {searchQuery && <button onClick={() => { setSearchQuery(""); setSearchResults(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"><X size={13}/></button>}
+          {searchQuery && <button onClick={() => { setSearchQuery(""); setSearchResults(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 dark:text-muted-foreground"><X size={13}/></button>}
 
           {/* Search results */}
           {searchResults && (
@@ -166,7 +166,9 @@ const Header = () => {
             return (
               <button key={path} onClick={() => navigate(path)}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors min-w-[52px]
-                  ${active ? "text-foreground bg-muted" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+                  ${active
+                    ? "bg-white/20 text-white dark:bg-muted dark:text-foreground"
+                    : "text-white/70 hover:text-white hover:bg-white/10 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-muted/50"}`}>
                 <Icon size={18}/><span>{label}</span>
               </button>
             );
@@ -183,7 +185,7 @@ const Header = () => {
 
           {/* Notifications */}
           <div className="relative">
-            <Button variant="ghost" size="icon-sm" className="relative" onClick={() => setNotifOpen(o => !o)}>
+            <Button variant="ghost" size="icon-sm" className="relative text-white/80 hover:text-white hover:bg-white/10 dark:text-foreground dark:hover:bg-muted" onClick={() => setNotifOpen(o => !o)}>
               <Bell size={18}/>
               {unread > 0 && <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-destructive rounded-full flex items-center justify-center text-[9px] font-bold text-white">{unread>9?"9+":unread}</span>}
             </Button>
@@ -298,11 +300,11 @@ const Header = () => {
 
           {/* Profile dropdown */}
           <div className="relative">
-            <button onClick={() => setProfileOpen(o=>!o)} className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-lg hover:bg-muted transition-colors">
-              <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-semibold text-primary-foreground overflow-hidden">
+            <button onClick={() => setProfileOpen(o=>!o)} className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-lg hover:bg-white/10 dark:hover:bg-muted transition-colors">
+              <div className="w-7 h-7 rounded-full bg-white/20 dark:bg-primary flex items-center justify-center text-xs font-semibold text-white dark:text-primary-foreground overflow-hidden ring-2 ring-white/30 dark:ring-0">
                 {user?.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover" alt=""/> : userInitial}
               </div>
-              <ChevronDown size={12} className="text-muted-foreground hidden sm:block"/>
+              <ChevronDown size={12} className="text-white/70 dark:text-muted-foreground hidden sm:block"/>
             </button>
             {profileOpen && (
               <>

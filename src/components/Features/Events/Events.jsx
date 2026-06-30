@@ -3,10 +3,10 @@ import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getEvents, getMyEvents, createEvent, attendEvent, deleteEvent } from "@/api/eventApi";
+import { getEvents, getPastEvents, getMyEvents, createEvent, attendEvent, deleteEvent } from "@/api/eventApi";
 import useAuth from "@/hooks/useAuth";
 import {
-  Calendar, Clock, MapPin, Users, Plus, X, Globe, Wifi,
+  Calendar, Clock, MapPin, Users, Plus, X, Wifi,
   Loader2, Trash2, ExternalLink, CalendarCheck, Briefcase,
   Mic, Network, Building2, BookOpen
 } from "lucide-react";
@@ -36,20 +36,24 @@ const formatDate = (d) => {
 const formatTime = (d) => new Date(d).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit" });
 const isUpcoming = (d) => new Date(d) > new Date();
 
-const EventCard = ({ event, currentUserId, onAttend, onDelete }) => {
+const EventCard = ({ event, currentUserId, onAttend, onDelete, onClick }) => {
   const [loading, setLoading] = useState(false);
   const isHost = event.host?._id === currentUserId || event.host?._id?.toString() === currentUserId;
   const attending = event.attendees?.some(a => (a._id||a)?.toString() === currentUserId);
   const CatIcon = CATEGORIES.find(c=>c.value===event.category)?.icon || Calendar;
   const upcoming = isUpcoming(event.date);
 
-  const handleAttend = async () => {
+  const handleAttend = async (e) => {
+    e.stopPropagation();
     setLoading(true);
     try { await onAttend(event._id); } finally { setLoading(false); }
   };
 
   return (
-    <div className={`rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-md ${!upcoming?"opacity-70":""}`}>
+    <div
+      onClick={onClick}
+      className={`rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-md cursor-pointer ${!upcoming?"opacity-70":""}`}
+    >
       <div className="p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
@@ -62,7 +66,7 @@ const EventCard = ({ event, currentUserId, onAttend, onDelete }) => {
           </div>
           {!upcoming && <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Past</span>}
           {isHost && (
-            <button onClick={()=>onDelete(event._id)} className="text-muted-foreground hover:text-destructive transition-colors ml-auto">
+            <button onClick={(e)=>{e.stopPropagation();onDelete(event._id);}} className="text-muted-foreground hover:text-destructive transition-colors ml-auto">
               <Trash2 size={14}/>
             </button>
           )}
@@ -112,11 +116,214 @@ const EventCard = ({ event, currentUserId, onAttend, onDelete }) => {
             </Button>
           ) : null}
           {event.link && (
-            <a href={event.link} target="_blank" rel="noopener noreferrer">
+            <a href={event.link} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>
               <Button size="sm" variant="outline" className="gap-1">
                 <ExternalLink size={13}/> Link
               </Button>
             </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const HERO_GRADIENTS = {
+  networking: "from-blue-700 via-blue-600 to-blue-400",
+  webinar:    "from-purple-700 via-purple-600 to-violet-400",
+  workshop:   "from-amber-600 via-orange-500 to-yellow-400",
+  hiring:     "from-emerald-700 via-green-600 to-teal-400",
+  conference: "from-rose-700 via-rose-600 to-pink-400",
+  other:      "from-slate-700 via-slate-600 to-slate-400",
+};
+
+const EventDetailModal = ({ event, currentUserId, onAttend, onDelete, onClose }) => {
+  const [loading, setLoading] = useState(false);
+  const isHost = event.host?._id?.toString() === currentUserId || event.host?._id === currentUserId;
+  const attending = event.attendees?.some(a => (a._id||a)?.toString() === currentUserId);
+  const upcoming = isUpcoming(event.date);
+  const CatIcon = CATEGORIES.find(c=>c.value===event.category)?.icon || Calendar;
+  const catLabel = CATEGORIES.find(c=>c.value===event.category)?.label;
+  const heroGradient = HERO_GRADIENTS[event.category] || HERO_GRADIENTS.other;
+
+  const handleAttend = async () => {
+    setLoading(true);
+    try { await onAttend(event._id); } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-card w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl border border-border"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ── Hero Banner ── */}
+        <div className={`relative bg-gradient-to-br ${heroGradient} px-6 pt-6 pb-10 overflow-hidden`}>
+          {/* decorative circles */}
+          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 pointer-events-none"/>
+          <div className="absolute -bottom-10 -left-6 w-32 h-32 rounded-full bg-white/5 pointer-events-none"/>
+
+          {/* top row: badge + close */}
+          <div className="relative flex items-center justify-between mb-5">
+            <span className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+              <CatIcon size={12}/> {catLabel}
+            </span>
+            <div className="flex items-center gap-2">
+              {!upcoming && (
+                <span className="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-medium">Past</span>
+              )}
+              <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors">
+                <X size={14}/>
+              </button>
+            </div>
+          </div>
+
+          {/* title */}
+          <h2 className="relative text-2xl font-bold text-white leading-tight mb-4">{event.title}</h2>
+
+          {/* date/time/location chips */}
+          <div className="relative flex flex-wrap gap-2">
+            <span className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+              <Calendar size={11}/> {formatDate(event.date)}
+            </span>
+            <span className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+              <Clock size={11}/> {formatTime(event.date)}{event.endDate ? ` – ${formatTime(event.endDate)}` : ""}
+            </span>
+            <span className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+              {event.isOnline ? <Wifi size={11}/> : <MapPin size={11}/>} {event.location || "Online"}
+            </span>
+          </div>
+        </div>
+
+        {/* ── Host strip ── */}
+        <div className="-mt-5 mx-5 relative z-10 bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary overflow-hidden shrink-0 ring-2 ring-border">
+            {event.host?.avatarUrl
+              ? <img src={event.host.avatarUrl} className="w-full h-full object-cover" alt=""/>
+              : event.host?.name?.[0]?.toUpperCase()||"H"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground">Organized by</p>
+            <p className="text-sm font-semibold text-foreground leading-tight">{event.host?.name}</p>
+            {event.host?.headline && <p className="text-xs text-muted-foreground truncate">{event.host.headline}</p>}
+          </div>
+          <span className="shrink-0 text-[11px] font-semibold bg-primary/10 text-primary px-2.5 py-1 rounded-full">Host</span>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="px-5 pt-5 pb-4 space-y-5">
+
+          {/* Description */}
+          {event.description ? (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">About this event</p>
+              <p className="text-sm text-foreground leading-relaxed">{event.description}</p>
+            </div>
+          ) : null}
+
+          {/* Meeting link */}
+          {event.link && (
+            <a href={event.link} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                <ExternalLink size={14} className="text-primary"/>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Meeting Link</p>
+                <p className="text-sm font-medium text-primary truncate group-hover:underline">{event.link}</p>
+              </div>
+            </a>
+          )}
+
+          {/* Attendees */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Attendees{event.maxAttendees
+                  ? ` (${event.attendees?.length||0} / ${event.maxAttendees})`
+                  : ` (${event.attendees?.length||0})`}
+              </p>
+              {event.maxAttendees && (
+                <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all"
+                    style={{ width:`${Math.min(100,((event.attendees?.length||0)/event.maxAttendees)*100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {event.attendees?.length > 0 ? (
+              <div className="space-y-2">
+                {/* stacked avatar row */}
+                <div className="flex items-center gap-1.5">
+                  <div className="flex -space-x-2">
+                    {event.attendees.slice(0,6).map(a=>(
+                      <div key={a._id||a} className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary overflow-hidden shrink-0 ring-2 ring-card">
+                        {a.avatarUrl
+                          ? <img src={a.avatarUrl} className="w-full h-full object-cover" alt=""/>
+                          : a.name?.[0]?.toUpperCase()||"?"}
+                      </div>
+                    ))}
+                  </div>
+                  {event.attendees.length > 6 && (
+                    <span className="text-xs text-muted-foreground">+{event.attendees.length-6} more</span>
+                  )}
+                </div>
+                {/* name pills */}
+                <div className="flex flex-wrap gap-1.5">
+                  {event.attendees.slice(0,8).map(a=>(
+                    <span key={a._id||a} className="text-xs bg-muted text-foreground px-2.5 py-1 rounded-full">
+                      {a.name}
+                    </span>
+                  ))}
+                  {event.attendees.length > 8 && (
+                    <span className="text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-full">
+                      +{event.attendees.length-8} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-5 border border-dashed border-border rounded-xl">
+                <Users size={24} className="mx-auto mb-2 text-muted-foreground/40"/>
+                <p className="text-sm text-muted-foreground">No attendees yet</p>
+                <p className="text-xs text-muted-foreground/60">Be the first to attend!</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer CTA ── */}
+        <div className="px-5 py-4 border-t border-border bg-muted/20">
+          {isHost ? (
+            <div className="flex gap-3">
+              <div className="flex-1 text-center text-sm py-2.5 rounded-xl bg-primary/10 text-primary font-semibold">
+                You're hosting this event
+              </div>
+              <Button variant="ghost" size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5 px-3 shrink-0"
+                onClick={() => { onDelete(event._id); onClose(); }}>
+                <Trash2 size={14}/> Delete
+              </Button>
+            </div>
+          ) : upcoming ? (
+            <Button
+              className="w-full h-11 text-sm font-semibold gap-2"
+              variant={attending ? "outline" : "default"}
+              onClick={handleAttend}
+              disabled={loading}
+            >
+              {loading
+                ? <Loader2 size={16} className="animate-spin"/>
+                : attending
+                  ? <><CalendarCheck size={16}/> You're attending · Click to leave</>
+                  : <><Plus size={16}/> Register / Attend Event</>}
+            </Button>
+          ) : (
+            <div className="w-full text-center text-sm py-2.5 rounded-xl bg-muted text-muted-foreground font-medium">
+              This event has ended
+            </div>
           )}
         </div>
       </div>
@@ -241,18 +448,21 @@ const Events = () => {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [tab, setTab] = useState("upcoming");
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null),3000); };
 
   const fetchEvents = async () => {
+    setError("");
     try {
-      const fn = tab==="mine" ? getMyEvents : getEvents;
+      const fn = tab==="mine" ? getMyEvents : tab==="past" ? getPastEvents : getEvents;
       const data = await fn();
       setEvents(data.events||[]);
-    } catch {}
+    } catch(e) { setError(e.message||"Failed to load events"); }
   };
 
   useEffect(() => { setLoading(true); fetchEvents().finally(()=>setLoading(false)); }, [tab]);
@@ -266,16 +476,18 @@ const Events = () => {
   const handleAttend = async (id) => {
     try {
       const data = await attendEvent(id);
-      setEvents(prev=>prev.map(e=>{
+      const uid = user?.id;
+      const updater = e => {
         if (e._id!==id) return e;
-        const uid = user?.id;
         return {
           ...e,
           attendees: data.attending
-            ? [...(e.attendees||[]),{_id:uid,name:user?.name}]
+            ? [...(e.attendees||[]),{_id:uid,name:user?.name,avatarUrl:user?.avatarUrl}]
             : (e.attendees||[]).filter(a=>(a._id||a)?.toString()!==uid)
         };
-      }));
+      };
+      setEvents(prev=>prev.map(updater));
+      setSelectedEvent(prev=>prev?._id===id ? updater(prev) : prev);
       showToast(data.attending?"You're attending!":"Removed from event");
     } catch(e) { showToast(e.message||"Failed","error"); }
   };
@@ -303,6 +515,15 @@ const Events = () => {
       )}
 
       {showCreate && <CreateEventModal onClose={()=>setShowCreate(false)} onCreated={handleCreated}/>}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          currentUserId={user?.id}
+          onAttend={handleAttend}
+          onDelete={handleDelete}
+          onClose={()=>setSelectedEvent(null)}
+        />
+      )}
 
       <div className="flex flex-col gap-4">
         {/* Header */}
@@ -343,6 +564,14 @@ const Events = () => {
           <div className="flex items-center justify-center py-16">
             <Loader2 size={28} className="animate-spin text-muted-foreground"/>
           </div>
+        ) : error ? (
+          <div className="bg-card border border-destructive/30 rounded-xl p-8 text-center">
+            <p className="text-destructive text-sm font-medium mb-1">Failed to load events</p>
+            <p className="text-muted-foreground text-xs mb-4">{error}</p>
+            <Button size="sm" variant="outline" onClick={()=>{ setLoading(true); fetchEvents().finally(()=>setLoading(false)); }}>
+              Retry
+            </Button>
+          </div>
         ) : display.length === 0 ? (
           <div className="bg-card border border-border rounded-xl p-12 text-center">
             <Calendar size={40} className="mx-auto mb-3 text-muted-foreground opacity-40"/>
@@ -364,6 +593,7 @@ const Events = () => {
                 currentUserId={user?.id}
                 onAttend={handleAttend}
                 onDelete={handleDelete}
+                onClick={()=>setSelectedEvent(event)}
               />
             ))}
           </div>

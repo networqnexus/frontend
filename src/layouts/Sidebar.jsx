@@ -11,12 +11,13 @@ import { getMyOrg } from "@/api/orgApi";
 import CreateOrgModal from "@/components/Features/Organization/CreateOrgModal";
 
 const mainLinks = [
-  { label:"Feed",     icon:Home,          path:"/feed"      },
-  { label:"Network",  icon:Users,         path:"/network"   },
-  { label:"Jobs",     icon:Briefcase,     path:"/jobs"      },
-  { label:"Chats", icon:MessageSquare, path:"/messages"  },
-  { label:"Events",   icon:CalendarDays,  path:"/events"    },
-  { label:"Projects", icon:Layers,        path:"/projects"  },
+  { label:"Feed",      icon:Home,          path:"/feed"       },
+  { label:"Network",   icon:Users,         path:"/network"    },
+  { label:"Jobs",      icon:Briefcase,     path:"/jobs"       },
+  { label:"Chats",     icon:MessageSquare, path:"/messages"   },
+  { label:"Events",    icon:CalendarDays,  path:"/events"     },
+  { label:"Streaming", icon:Radio,         path:"/streaming"  },
+  { label:"Projects",  icon:Layers,        path:"/projects"   },
 ];
 
 // Employee (default) — Analytics only
@@ -63,8 +64,10 @@ const NavLink = ({ label, icon: Icon, path, badge, onNavigate }) => {
   return (
     <button onClick={() => { navigate(path); onNavigate?.(); }}
       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group
-        ${active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
-      <Icon size={16} className={active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}/>
+        ${active
+          ? "bg-primary text-primary-foreground dark:bg-muted dark:text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+      <Icon size={16} className={active ? "text-primary-foreground dark:text-foreground" : "text-muted-foreground group-hover:text-foreground"}/>
       <span className="flex-1 text-left">{label}</span>
       {badge && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary leading-none">{badge}</span>}
     </button>
@@ -97,7 +100,7 @@ const Sidebar = memo(({ onNavigate }) => {
 
       {/* Profile card */}
       <div
-        className="rounded-xl border border-border bg-card p-4 mb-3 cursor-pointer hover:shadow-sm transition-shadow"
+        className="rounded-xl border border-primary/20 bg-primary/5 dark:bg-card dark:border-border p-4 mb-3 cursor-pointer hover:shadow-sm transition-shadow"
         onClick={() => { navigate(`/profile/${user?.username || "me"}`); onNavigate?.(); }}
       >
         {/* Avatar + name */}
@@ -117,14 +120,14 @@ const Sidebar = memo(({ onNavigate }) => {
 
         {/* Real stats */}
         <div className="grid grid-cols-2 gap-2 text-center">
-          <div className="rounded-lg bg-muted/50 p-2 hover:bg-muted transition-colors">
-            <p className="text-sm font-bold text-foreground">
+          <div className="rounded-lg bg-primary/8 dark:bg-muted/50 p-2 hover:bg-primary/15 dark:hover:bg-muted transition-colors">
+            <p className="text-sm font-bold text-primary dark:text-foreground">
               {stats?.connections ?? user?.connections?.length ?? 0}
             </p>
             <p className="text-[10px] lg:text-[8px] xl:text-[10px] text-muted-foreground">Connections</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-2 hover:bg-muted transition-colors">
-            <p className="text-sm font-bold text-foreground">
+          <div className="rounded-lg bg-primary/8 dark:bg-muted/50 p-2 hover:bg-primary/15 dark:hover:bg-muted transition-colors">
+            <p className="text-sm font-bold text-primary dark:text-foreground">
               {stats?.profileViews ?? 0}
             </p>
             <p className="text-[10px] lg:text-[8px] xl:text-[10px] text-muted-foreground">Profile views</p>
@@ -173,7 +176,7 @@ const Sidebar = memo(({ onNavigate }) => {
               onClick={() => { navigate(`/org/${myOrg.slug}`); onNavigate?.(); }}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group
                 ${location.pathname.startsWith(`/org/${myOrg.slug}`)
-                  ? "bg-muted text-foreground"
+                  ? "bg-primary text-primary-foreground dark:bg-muted dark:text-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
               <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
                 {myOrg.logoUrl ? <img src={myOrg.logoUrl} className="w-full h-full object-cover" alt=""/> : <Building2 size={10} className="text-primary"/>}

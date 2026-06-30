@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +9,8 @@ import useAuth from "@/hooks/useAuth";
 import {
   Image, Video, ThumbsUp, MessageCircle, Share2, Bookmark,
   MoreHorizontal, Globe, Repeat2, Send, ChevronDown, ChevronUp,
-  Loader2, Trash2, Sparkles, Flame, RefreshCw, Users, X, Edit3, Check, BookmarkCheck
+  Loader2, Trash2, Sparkles, Flame, RefreshCw, Users, X, Edit3, Check, BookmarkCheck,
+  Link2
 } from "lucide-react";
 
 const REACTIONS = [
@@ -127,6 +129,10 @@ const PostCard = ({ post, currentUserId, savedIds, onUpdate, onDelete, onSaveTog
   const [saving, setSaving] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [savingBookmark, setSavingBookmark] = useState(false);
+  const [showRepostMenu, setShowRepostMenu] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const navigate = useNavigate();
 
   const LIMIT = 250;
   const isLong = post.content?.length > LIMIT;
@@ -193,6 +199,31 @@ const PostCard = ({ post, currentUserId, savedIds, onUpdate, onDelete, onSaveTog
     setSaving(false);
   };
 
+  const handleInstantRepost = async () => {
+    setShowRepostMenu(false);
+    try {
+      const quoted = `📢 ${post.author?.name}:\n\n${(post.content||"").slice(0,300)}${(post.content?.length||0)>300?"…":""}`;
+      if (post.media?.data) {
+        const res = await fetch(post.media.data);
+        const blob = await res.blob();
+        const file = new File([blob], "repost-media", { type: blob.type });
+        const fd = new FormData();
+        fd.append("content", quoted);
+        fd.append("visibility", "public");
+        fd.append("media", file);
+        await createPost(fd);
+      } else {
+        await createPost({ content: quoted, visibility: "public" });
+      }
+    } catch {}
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/post/${post._id}`).catch(()=>{});
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="p-4">
@@ -203,7 +234,7 @@ const PostCard = ({ post, currentUserId, savedIds, onUpdate, onDelete, onSaveTog
               {post.author?.avatarUrl?<img src={post.author.avatarUrl} className="w-full h-full object-cover" alt=""/>:initials}
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">{post.author?.name}</p>
+              <p className="text-sm font-semibold text-foreground cursor-pointer hover:underline" onClick={()=>post.author?.username&&navigate(`/profile/${post.author.username}`)}>{post.author?.name}</p>
               <p className="text-xs text-muted-foreground">{post.author?.headline}</p>
               <p className="text-xs text-muted-foreground">{timeAgo(post.createdAt)} · <Globe size={10} className="inline"/></p>
             </div>
@@ -241,12 +272,7 @@ const PostCard = ({ post, currentUserId, savedIds, onUpdate, onDelete, onSaveTog
         {/* Content / Edit mode */}
         {editing ? (
           <div className="mb-3">
-            <Textarea
-              value={editText}
-              onChange={e=>setEditText(e.target.value)}
-              className="min-h-[100px] resize-none text-sm mb-2"
-              autoFocus
-            />
+            <Textarea value={editText} onChange={e=>setEditText(e.target.value)} className="min-h-[100px] resize-none text-sm mb-2" autoFocus/>
             <div className="flex gap-2">
               <Button size="xs" onClick={handleEdit} disabled={saving||!editText.trim()} className="gap-1">
                 {saving?<><Loader2 size={12} className="animate-spin"/>Saving…</>:<><Check size={12}/>Save</>}
@@ -255,17 +281,20 @@ const PostCard = ({ post, currentUserId, savedIds, onUpdate, onDelete, onSaveTog
             </div>
           </div>
         ) : (
-          <div className="mb-3">
+          <div className="mb-3 cursor-pointer" onClick={()=>navigate(`/post/${post._id}`)}>
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
               {isLong&&!expanded?post.content.slice(0,LIMIT)+"…":post.content}
             </p>
-            {isLong&&<button onClick={()=>setExpanded(!expanded)} className="text-xs text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1">{expanded?<><ChevronUp size={12}/>Show less</>:<><ChevronDown size={12}/>See more</>}</button>}
+            {isLong&&<button onClick={e=>{e.stopPropagation();setExpanded(!expanded);}} className="text-xs text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1">{expanded?<><ChevronUp size={12}/>Show less</>:<><ChevronDown size={12}/>See more</>}</button>}
           </div>
         )}
 
         {post.media?.data && (
           <div className="mb-3 rounded-lg overflow-hidden border border-border">
-            {post.media.type==="image"?<img src={post.media.data} alt="" className="w-full max-h-80 object-cover"/>:<video src={post.media.data} controls className="w-full max-h-80"/>}
+            {post.media.type === "image"
+              ? <img src={post.media.data} alt="" className="w-full max-h-80 object-cover"/>
+              : <video src={post.media.data} controls controlsList="nodownload" playsInline className="w-full"/>
+            }
           </div>
         )}
 
@@ -303,16 +332,76 @@ const PostCard = ({ post, currentUserId, savedIds, onUpdate, onDelete, onSaveTog
             )}
             <button onClick={()=>handleReact(myReaction?.type||"like")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${liked?"text-primary bg-primary/5":"text-muted-foreground hover:bg-muted"}`}>
-              <span className="text-sm leading-none">{myReaction?.type||<ThumbsUp size={14}/>}</span>
-              {typeof (myReaction?.type) === "string" ? myReaction.type==="like"?"Like":REACTIONS.find(r=>r.emoji===myReaction.type)?.label||"Like" : "Like"}
+              {liked && myReaction?.type && myReaction.type !== "like"
+                ? <span className="text-sm leading-none">{myReaction.type}</span>
+                : <ThumbsUp size={14} className={liked?"fill-primary":""}/>}
+              {liked
+                ? (myReaction?.type && myReaction.type !== "like" ? REACTIONS.find(r=>r.emoji===myReaction.type)?.label||"Like" : "Like")
+                : "Like"}
             </button>
           </div>
 
           <button onClick={()=>setShowComments(!showComments)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showComments?"text-foreground bg-muted":"text-muted-foreground hover:bg-muted"}`}>
             <MessageCircle size={14}/> Comment
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted"><Repeat2 size={14}/> Repost</button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted"><Share2 size={14}/> Share</button>
+          {/* Repost dropdown */}
+          <div className="relative">
+            <button onClick={()=>{setShowRepostMenu(m=>!m);setShowShareMenu(false);}}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+              <Repeat2 size={14}/> Repost
+            </button>
+            {showRepostMenu&&(
+              <>
+                <div className="fixed inset-0 z-10" onClick={()=>setShowRepostMenu(false)}/>
+                <div className="absolute bottom-full left-0 mb-1 bg-card border border-border rounded-xl shadow-lg z-20 overflow-hidden py-1 min-w-[190px]">
+                  <button onClick={handleInstantRepost}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                    <Repeat2 size={13}/> Instant Repost
+                  </button>
+                  <button onClick={()=>{setShowRepostMenu(false);navigate(`/post/${post._id}`);}}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                    <Edit3 size={13}/> Repost with thoughts
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Share dropdown */}
+          <div className="relative">
+            <button onClick={()=>{setShowShareMenu(m=>!m);setShowRepostMenu(false);}}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+              <Share2 size={14}/> Share
+            </button>
+            {showShareMenu&&(
+              <>
+                <div className="fixed inset-0 z-10" onClick={()=>setShowShareMenu(false)}/>
+                <div className="absolute bottom-full left-0 mb-1 bg-card border border-border rounded-xl shadow-lg z-20 overflow-hidden min-w-[240px]">
+                  {/* Visible clickable link */}
+                  <div className="px-3 pt-2.5 pb-2 border-b border-border/60">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Post link</p>
+                    <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2.5 py-1.5">
+                      <button type="button"
+                        onClick={()=>{setShowShareMenu(false);navigate(`/post/${post._id}`);}}
+                        className="flex-1 text-xs text-primary hover:underline truncate text-left break-all">
+                        {window.location.origin}/post/{post._id}
+                      </button>
+                      <button onClick={handleCopyLink} title={linkCopied?"Copied!":"Copy link"}
+                        className={`shrink-0 transition-colors ${linkCopied?"text-emerald-500":"text-muted-foreground hover:text-foreground"}`}>
+                        {linkCopied?<Check size={13}/>:<Link2 size={13}/>}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="py-1">
+                    <button onClick={()=>{setShowShareMenu(false);navigate("/messages",{state:{sharePost:{id:post._id,authorName:post.author?.name,authorAvatar:post.author?.avatarUrl,content:(post.content||"").slice(0,200),link:`${window.location.origin}/post/${post._id}`}}});}}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                      <Send size={13}/> Send in message
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={handleSave} disabled={savingBookmark}
             className={`ml-auto flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isSaved?"text-amber-500":"text-muted-foreground hover:bg-muted"}`}>
             {isSaved?<BookmarkCheck size={14} className="fill-amber-500"/>:<Bookmark size={14}/>}

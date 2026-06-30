@@ -6,7 +6,8 @@ import CheckEmail     from "@/components/pages/Auth/CheckEmail";
 import ForgotPassword from "@/components/pages/Auth/ForgotPassword";
 import ResetPassword  from "@/components/pages/Auth/ResetPassword";
 import VerifyEmail    from "@/components/pages/Auth/VerifyEmail";
-import Feed       from "@/components/Features/Feed/Feed";
+import Feed           from "@/components/Features/Feed/Feed";
+import PostDetailPage from "@/components/Features/Feed/PostDetailPage";
 import Network    from "@/components/Features/Network/Network";
 import Profile    from "@/components/Features/Profile/Profile";
 import Jobs       from "@/components/Features/jobs/Jobs";
@@ -70,6 +71,7 @@ export default function AppRoutes() {
       <Route path="/reset-password"  element={<ResetPassword/>}/>
 
       <Route path="/feed"        element={<ProtectedRoute><Feed/></ProtectedRoute>}/>
+      <Route path="/post/:id"    element={<ProtectedRoute><PostDetailPage/></ProtectedRoute>}/>
       <Route path="/network"     element={<ProtectedRoute><Network/></ProtectedRoute>}/>
       <Route path="/profile/:id" element={<ProtectedRoute><Profile/></ProtectedRoute>}/>
       <Route path="/profile"     element={<ProtectedRoute><Profile/></ProtectedRoute>}/>
