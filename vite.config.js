@@ -21,7 +21,9 @@ export default defineConfig({
     target: "esnext",
     minify: "esbuild",
     cssMinify: true,
-    chunkSizeWarningLimit: 600,
+    sourcemap: false,
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -50,10 +52,17 @@ export default defineConfig({
         entryFileNames:  "assets/[name]-[hash].js",
         assetFileNames:  "assets/[name]-[hash][extname]",
       },
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+      },
+    },
+    esbuildOptions: {
+      legalComments: "none",
+      drop: ["console", "debugger"],
     },
   },
 
-  // Fix: include socket.io deps for proper bundling
   optimizeDeps: {
     include: [
       "react",
@@ -62,7 +71,6 @@ export default defineConfig({
       "lucide-react",
       "socket.io-client",
     ],
-    // Force re-bundling of debug module
     force: false,
   },
 })
