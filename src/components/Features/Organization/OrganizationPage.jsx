@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
-import { getOrg, followOrg, addAdmin, removeAdmin, sendInvite, getInvites, cancelInvite, updateOrg } from "@/api/orgApi";
+import { getOrg, followOrg, addAdmin, removeAdmin, sendInvite, getInvites, cancelInvite, updateOrg, leaveOrg } from "@/api/orgApi";
 import useAuth from "@/hooks/useAuth";
 import {
   Building2, MapPin, Globe, Users, Briefcase, Calendar, BadgeCheck,
   Plus, Settings, ExternalLink, Loader2, X, UserPlus, LayoutDashboard,
-  ChevronRight, IndianRupee, Mail, Clock, Camera, ImagePlus
+  ChevronRight, IndianRupee, Mail, Clock, Camera, ImagePlus, LogOut
 } from "lucide-react";
 
 const INDUSTRY_COLORS = {
@@ -67,6 +67,7 @@ const OrganizationPage = () => {
   const [inviteMsg,     setInviteMsg]     = useState("");
   const [pendingInvites,setPendingInvites]= useState([]);
   const [imageUploading, setImageUploading] = useState(null); // "logo" | "cover" | null
+  const [leaving,        setLeaving]        = useState(false);
 
   useEffect(() => { loadOrg(); }, [slug]);
 
@@ -138,6 +139,18 @@ const OrganizationPage = () => {
       setOrg(o => ({ ...o, logoUrl: d.org.logoUrl, coverUrl: d.org.coverUrl }));
     } catch {}
     setImageUploading(null);
+  };
+
+  const handleLeave = async () => {
+    if (!window.confirm(`Are you sure you want to leave ${org.name}? You will lose access immediately.`)) return;
+    setLeaving(true);
+    try {
+      await leaveOrg(org._id);
+      navigate("/feed");
+    } catch (e) {
+      alert(e.message || "Could not leave organization.");
+    }
+    setLeaving(false);
   };
 
   const handleRemoveAdmin = async (userId) => {
@@ -224,6 +237,15 @@ const OrganizationPage = () => {
                       : isFollowing
                         ? <><BadgeCheck size={12}/>Following</>
                         : <><Plus size={12}/>Follow</>}
+                  </Button>
+                )}
+                {(isAdmin || isMember) && !isOwner && (
+                  <Button size="sm" variant="outline"
+                    onClick={handleLeave} disabled={leaving}
+                    className="gap-1.5 h-8 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive">
+                    {leaving
+                      ? <Loader2 size={12} className="animate-spin"/>
+                      : <><LogOut size={12}/>Leave</>}
                   </Button>
                 )}
               </div>

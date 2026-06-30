@@ -9,13 +9,14 @@ import {
   getOrgCandidates, addOrgCandidate, updateOrgCandStage, deleteOrgCandidate,
   getOrgLeads, addOrgLead, updateOrgLead, deleteOrgLead,
   getOrgEmployees, addOrgEmployee, updateOrgEmployee, deleteOrgEmployee,
-  getOrgLeaves, updateOrgLeaveStatus,
+  getOrgLeaves, updateOrgLeaveStatus, sendOrgLetter, confirmOrgOffer,
   getAttendance, bulkMarkAttendance, getAttendanceSummary
 } from "@/api/orgApi";
 import {
   Building2, LayoutDashboard, Users, Briefcase, TrendingUp, Plus,
   Trash2, X, Loader2, ArrowLeft, Star, ChevronDown, IndianRupee,
-  UserCheck, UserX, ClipboardList, BadgeCheck, CalendarCheck, ChevronLeft, ChevronRight
+  UserCheck, UserX, ClipboardList, BadgeCheck, CalendarCheck, ChevronLeft, ChevronRight,
+  FileText, Send
 } from "lucide-react";
 
 // ── Stage configs ─────────────────────────────────────────────────────
@@ -300,6 +301,38 @@ const HRMSTab = ({ orgId }) => {
   const [saving, setSaving] = useState(false);
   const set = (k,v) => setForm(p => ({...p,[k]:v}));
 
+  // Letter modal state
+  const [letterEmp,     setLetterEmp]     = useState(null);
+  const [letterType,    setLetterType]    = useState(null);
+  const [letterForm,    setLetterForm]    = useState({});
+  const [sendingLetter, setSendingLetter] = useState(false);
+  const [letterMsg,     setLetterMsg]     = useState("");
+  const setLF = (k, v) => setLetterForm(p => ({...p,[k]:v}));
+
+  const openLetter  = (emp) => { setLetterEmp(emp); setLetterType(null); setLetterForm({}); setLetterMsg(""); };
+  const closeLetter = ()    => { setLetterEmp(null); setLetterType(null); setLetterMsg(""); };
+
+  const handleSendLetter = async () => {
+    setSendingLetter(true); setLetterMsg("");
+    try {
+      const d = await sendOrgLetter(orgId, letterEmp._id, { type: letterType, ...letterForm });
+      // For offer letters, pendingOffer is stored on employee — reflect it in the list
+      if (letterType === "offer" && d.employee) {
+        setEmployees(prev => prev.map(e => e._id === d.employee._id ? { ...e, pendingOffer: d.employee.pendingOffer } : e));
+      }
+      setLetterMsg("success:" + d.message);
+    } catch (e) { setLetterMsg("error:" + (e.message || "Failed to send.")); }
+    setSendingLetter(false);
+  };
+
+  // Called from the employee ROW (not the modal) — after candidate actually responds
+  const handleConfirmOffer = async (emp, action) => {
+    try {
+      const d = await confirmOrgOffer(orgId, emp._id, action);
+      setEmployees(prev => prev.map(e => e._id === emp._id ? { ...e, ...d.employee, pendingOffer: undefined } : e));
+    } catch {}
+  };
+
   useEffect(() => { loadAll(); }, [orgId]);
   const loadAll = async () => {
     setLoading(true);
@@ -361,6 +394,145 @@ const HRMSTab = ({ orgId }) => {
         </Modal>
       )}
 
+      {/* ── Letter Modal ──────────────────────────────────────────────── */}
+      {letterEmp && (
+        <Modal
+          title={
+            letterType
+              ? `${letterType === "offer" ? "Offer" : "Relieving"} Letter — ${letterEmp.name}`
+              : `Generate Letter — ${letterEmp.name}`
+          }
+          onClose={closeLetter}
+          footer={
+            letterType && !letterMsg ? (
+              <>
+                <Button variant="outline" className="flex-1" onClick={() => { setLetterType(null); setLetterMsg(""); }}>Back</Button>
+                <Button className="flex-1 gap-1.5" onClick={handleSendLetter}
+                  disabled={sendingLetter || (letterType === "relieving" && !letterForm.lastWorkingDay)}>
+                  {sendingLetter ? <><Loader2 size={13} className="animate-spin"/>Sending…</> : <><Send size={13}/>Send Letter</>}
+                </Button>
+              </>
+            ) : null
+          }
+        >
+          {letterMsg.startsWith("success") ? (
+            /* ── Letter sent successfully ── */
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center">
+                <BadgeCheck size={28} className="text-emerald-600"/>
+              </div>
+              <p className="text-sm font-semibold text-foreground">Letter Sent!</p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                {letterMsg.replace("success:", "")}
+                {letterType === "offer" && (
+                  <span className="block mt-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                    When the candidate responds, mark their decision from the Employees panel.
+                  </span>
+                )}
+              </p>
+              <Button size="sm" variant="outline" onClick={closeLetter}>Close</Button>
+            </div>
+          ) : !letterType ? (
+            /* ── Step 1: Choose letter type ── */
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-muted-foreground">
+                Choose the type of letter to generate and send to{" "}
+                <span className="font-medium text-foreground">{letterEmp.email || "this employee"}</span>.
+              </p>
+              {!letterEmp.email && (
+                <p className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-900">
+                  This employee has no email address on record. Please update their profile first.
+                </p>
+              )}
+              <button
+                onClick={() => { setLetterType("offer"); setLetterForm({ position: letterEmp.role || "", department: letterEmp.department || "", ctc: letterEmp.salary ? String(letterEmp.salary) : "", joiningDate: letterEmp.joinDate ? new Date(letterEmp.joinDate).toISOString().slice(0,10) : "", probationPeriod: "3 months", reportingManager: "", workLocation: "", offerExpiryDate: "" }); }}
+                className="flex items-start gap-3 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left group">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FileText size={18} className="text-emerald-600"/>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Offer Letter</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Send a formal offer with role, CTC, joining date, and employment terms.</p>
+                </div>
+              </button>
+              <button
+                onClick={() => { setLetterType("relieving"); setLetterForm({ reason: "Resignation" }); }}
+                className="flex items-start gap-3 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left group">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FileText size={18} className="text-rose-600"/>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Relieving Letter</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Issue a relieving &amp; experience certificate with last working day details.</p>
+                </div>
+              </button>
+            </div>
+          ) : letterType === "offer" ? (
+            /* ── Offer Letter Form ── */
+            <>
+              <p className="text-xs text-muted-foreground -mt-1">Fields are pre-filled from the employee record — edit as needed before sending.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Position / Role">
+                  <Input value={letterForm.position ?? ""} onChange={e=>setLF("position",e.target.value)} placeholder="Software Engineer"/>
+                </Field>
+                <Field label="Department">
+                  <Input value={letterForm.department ?? ""} onChange={e=>setLF("department",e.target.value)} placeholder="Engineering"/>
+                </Field>
+                <Field label="Date of Joining">
+                  <Input type="date" value={letterForm.joiningDate ?? ""} onChange={e=>setLF("joiningDate",e.target.value)}/>
+                </Field>
+                <Field label="Annual CTC (₹)">
+                  <Input type="text" inputMode="numeric" value={letterForm.ctc} onChange={e=>setLF("ctc",e.target.value)} placeholder="600000"/>
+                </Field>
+                <Field label="Reporting Manager">
+                  <Input value={letterForm.reportingManager ?? ""} onChange={e=>setLF("reportingManager",e.target.value)} placeholder="Manager name"/>
+                </Field>
+                <Field label="Work Location">
+                  <Input value={letterForm.workLocation ?? ""} onChange={e=>setLF("workLocation",e.target.value)} placeholder="Mumbai / WFH"/>
+                </Field>
+                <Field label="Probation Period">
+                  <Input value={letterForm.probationPeriod ?? "3 months"} onChange={e=>setLF("probationPeriod",e.target.value)} placeholder="3 months"/>
+                </Field>
+                <Field label="Offer Expiry Date">
+                  <Input type="date" value={letterForm.offerExpiryDate ?? ""} onChange={e=>setLF("offerExpiryDate",e.target.value)}/>
+                </Field>
+              </div>
+              {letterMsg.startsWith("error") && (
+                <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{letterMsg.replace("error:","")}</p>
+              )}
+            </>
+          ) : (
+            /* ── Relieving Letter Form ── */
+            <>
+              <p className="text-xs text-muted-foreground -mt-1">The employee's join date will be pulled automatically from their record.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Last Working Day *">
+                  <Input type="date" value={letterForm.lastWorkingDay ?? ""} onChange={e=>setLF("lastWorkingDay",e.target.value)}/>
+                </Field>
+                <Field label="Reason for Leaving">
+                  <select value={letterForm.reason ?? "Resignation"} onChange={e=>setLF("reason",e.target.value)}
+                    className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none focus:ring-1 focus:ring-ring">
+                    <option>Resignation</option>
+                    <option>Mutual Consent</option>
+                    <option>Contract End</option>
+                    <option>Termination</option>
+                    <option>Retirement</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="Additional Note (optional)">
+                <textarea value={letterForm.note ?? ""} onChange={e=>setLF("note",e.target.value)}
+                  rows={3} placeholder="Any farewell note or special mention to include in the letter…"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-transparent outline-none resize-none focus:ring-1 focus:ring-ring"/>
+              </Field>
+              {letterMsg.startsWith("error") && (
+                <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{letterMsg.replace("error:","")}</p>
+              )}
+            </>
+          )}
+        </Modal>
+      )}
+
       {loading ? <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground"/></div>
       : tab === "employees" ? (
         employees.length === 0 ? (
@@ -371,23 +543,57 @@ const HRMSTab = ({ orgId }) => {
         ) : (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-border bg-muted/30"><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Employee</th><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Department</th><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Salary</th><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Status</th><th className="px-4 py-2.5"></th></tr></thead>
+              <thead><tr className="border-b border-border bg-muted/30"><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Employee</th><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Department</th><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Salary</th><th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Status</th><th className="px-4 py-2.5 text-xs font-medium text-muted-foreground text-right">Actions</th></tr></thead>
               <tbody className="divide-y divide-border">
                 {employees.map(e => (
                   <tr key={e._id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
                       <p className="font-medium text-foreground">{e.name}</p>
                       <p className="text-xs text-muted-foreground">{e.role}</p>
+                      {e.pendingOffer && (
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            Offer Pending
+                          </span>
+                          <button onClick={() => handleConfirmOffer(e, "accept")}
+                            className="text-[9px] font-semibold text-emerald-600 hover:underline">
+                            Accept
+                          </button>
+                          <span className="text-[9px] text-muted-foreground">·</span>
+                          <button onClick={() => handleConfirmOffer(e, "decline")}
+                            className="text-[9px] font-semibold text-red-500 hover:underline">
+                            Decline
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{e.department}</td>
-                    <td className="px-4 py-3 text-xs font-medium text-foreground">₹{(e.salary||0).toLocaleString("en-IN")}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${e.status==="active"?"bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400":e.status==="on_leave"?"bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400":"bg-muted text-muted-foreground"}`}>
-                        {e.status.replace("_"," ")}
+                      <p className="text-xs font-medium text-foreground">₹{(e.salary||0).toLocaleString("en-IN")}</p>
+                      {e.pendingOffer?.salary && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                          → ₹{e.pendingOffer.salary.toLocaleString("en-IN")} if accepted
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        e.status === "active"        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                        : e.status === "on_leave"    ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                        : e.status === "offer_pending" ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                        : "bg-muted text-muted-foreground"
+                      }`}>
+                        {e.status === "offer_pending" ? "Offer Pending" : e.status.replace("_"," ")}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleDeleteEmp(e._id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 size={13}/></button>
+                      <div className="flex items-center gap-2.5 justify-end">
+                        <button onClick={() => openLetter(e)}
+                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 hover:underline transition-colors">
+                          <FileText size={11}/> Select
+                        </button>
+                        <button onClick={() => handleDeleteEmp(e._id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 size={13}/></button>
+                      </div>
                     </td>
                   </tr>
                 ))}

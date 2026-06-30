@@ -9,6 +9,7 @@ export const getOrg       = (slug) => apiRequest("GET",  `${B}/${slug}`);
 export const updateOrg    = (id, data) => apiRequest("PUT",    `${B}/${id}`, data, data instanceof FormData);
 export const deleteOrg    = (id)       => apiRequest("DELETE", `${B}/${id}`);
 export const followOrg    = (id)   => apiRequest("PUT",  `${B}/${id}/follow`);
+export const leaveOrg     = (id)   => apiRequest("DELETE", `${B}/${id}/leave`);
 export const addAdmin     = (id, username) => apiRequest("POST",   `${B}/${id}/admins`, { username });
 export const removeAdmin  = (id, userId)   => apiRequest("DELETE", `${B}/${id}/admins/${userId}`);
 
@@ -32,6 +33,8 @@ export const getOrgEmployees    = (orgId, p={}) => apiRequest("GET",    `${B}/${
 export const addOrgEmployee     = (orgId, d)    => apiRequest("POST",   `${B}/${orgId}/hrms/employees`, d);
 export const updateOrgEmployee  = (orgId, id, d) => apiRequest("PUT",   `${B}/${orgId}/hrms/employees/${id}`, d);
 export const deleteOrgEmployee  = (orgId, id)   => apiRequest("DELETE", `${B}/${orgId}/hrms/employees/${id}`);
+export const sendOrgLetter      = (orgId, empId, data)   => apiRequest("POST", `${B}/${orgId}/hrms/employees/${empId}/letter`, data);
+export const confirmOrgOffer    = (orgId, empId, action) => apiRequest("PUT",  `${B}/${orgId}/hrms/employees/${empId}/offer`, { action });
 export const getOrgLeaves       = (orgId)       => apiRequest("GET",    `${B}/${orgId}/hrms/leaves`);
 export const updateOrgLeaveStatus = (orgId, id, status) => apiRequest("PUT", `${B}/${orgId}/hrms/leaves/${id}`, { status });
 export const getOrgHrmsStats    = (orgId)       => apiRequest("GET",    `${B}/${orgId}/hrms/stats`);
