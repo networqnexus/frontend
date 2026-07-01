@@ -146,6 +146,7 @@ const OrganizationPage = () => {
     setLeaving(true);
     try {
       await leaveOrg(org._id);
+      window.dispatchEvent(new CustomEvent("org:updated"));
       navigate("/feed");
     } catch (e) {
       alert(e.message || "Could not leave organization.");
