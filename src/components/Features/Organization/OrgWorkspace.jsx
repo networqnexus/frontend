@@ -7,6 +7,7 @@ import useAuth from "@/hooks/useAuth";
 import {
   getOrg, getWorkspaceStats,
   getOrgCandidates, addOrgCandidate, updateOrgCandStage, deleteOrgCandidate,
+  getOrgAtsReport, getOrgHiringAssistant, getOrgJobs, createOrgJob, toggleOrgJob, deleteOrgJob,
   getOrgLeads, addOrgLead, updateOrgLead, deleteOrgLead,
   getOrgEmployees, addOrgEmployee, updateOrgEmployee, deleteOrgEmployee,
   getOrgLeaves, updateOrgLeaveStatus, sendOrgLetter, confirmOrgOffer,
@@ -14,9 +15,9 @@ import {
 } from "@/api/orgApi";
 import {
   Building2, LayoutDashboard, Users, Briefcase, TrendingUp, Plus,
-  Trash2, X, Loader2, ArrowLeft, Star, ChevronDown, IndianRupee,
+  Trash2, X, Loader2, ArrowLeft, ArrowRight, Star, ChevronDown, IndianRupee,
   UserCheck, UserX, ClipboardList, BadgeCheck, CalendarCheck, ChevronLeft, ChevronRight,
-  FileText, Send
+  FileText, Send, Sparkles, SlidersHorizontal, Inbox, CheckCircle2, Clock, Calendar,
 } from "lucide-react";
 
 // ── Stage configs ─────────────────────────────────────────────────────
@@ -82,7 +83,14 @@ const DashboardTab = ({ orgId }) => {
 
 // ── ATS Tab ───────────────────────────────────────────────────────────
 const EMPTY_CAND = { name:"", email:"", phone:"", role:"", company:"", experience:"", skills:"", stage:"applied" };
+const ATS_SUBTABS = [
+  { id: "candidates", label: "Candidates" },
+  { id: "jobs",        label: "Jobs" },
+  { id: "reports",     label: "Reports" },
+];
+
 const ATSTab = ({ orgId }) => {
+  const [subTab, setSubTab] = useState("candidates");
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -120,6 +128,21 @@ const ATSTab = ({ orgId }) => {
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex bg-muted rounded-lg p-1 gap-1 w-fit">
+        {ATS_SUBTABS.map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)}
+            className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${subTab === t.id ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === "jobs" ? (
+        <JobsSubTab orgId={orgId} />
+      ) : subTab === "reports" ? (
+        <ATSReportsView orgId={orgId} />
+      ) : (
+      <>
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">{candidates.length} candidates</p>
         <Button size="sm" className="gap-1.5" onClick={() => setShowAdd(true)}><Plus size={13}/>Add Candidate</Button>
@@ -176,6 +199,694 @@ const ATSTab = ({ orgId }) => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      </>
+      )}
+    </div>
+  );
+};
+
+// ── ATS: Jobs sub-tab (org-scoped job postings) ────────────────────────
+const JOB_WORKPLACE_TYPES = ["Remote", "Hybrid", "On-site"];
+const JOB_LEVELS = ["Junior", "Mid", "Senior", "Lead"];
+const JOB_EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Temporary"];
+const EMPTY_JOB_FORM = { title:"", company:"", location:"", type:"Remote", level:"Junior", employmentType:"Full-time", salary:"", description:"", skills:"", requirements:"", perks:"" };
+const POST_JOB_STEPS = [
+  { id: 1, label: "Job details" },
+  { id: 2, label: "Description & skills" },
+  { id: 3, label: "Review & publish" },
+];
+
+const StepBadge = ({ n, active, done }) => (
+  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 shrink-0 ${
+    done ? "bg-primary border-primary text-primary-foreground" : active ? "border-primary text-primary" : "border-border text-muted-foreground"
+  }`}>
+    {done ? <CheckCircle2 size={14} /> : n}
+  </div>
+);
+
+// ── Post a Job wizard (with Applicant Insights + reuse-a-past-posting panel) ──
+const PostJobWizard = ({ orgId, orgJobs, onClose, onPosted }) => {
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState(EMPTY_JOB_FORM);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const insight = (() => {
+    if (!form.type || !form.level) return null;
+    const similar = orgJobs.filter(j => j.type === form.type && j.level === form.level);
+    if (similar.length < 2) return null;
+    const avg = Math.round(similar.reduce((s, j) => s + (j.applicants?.length || 0), 0) / similar.length);
+    return { avg, sampleSize: similar.length };
+  })();
+
+  const reuseJob = (job) => {
+    setForm({
+      title: job.title, company: job.company, location: job.location,
+      type: job.type, level: job.level, employmentType: job.employmentType || "Full-time",
+      salary: job.salary || "", description: job.description || "",
+      skills: (job.skills || []).join(", "),
+      requirements: (job.requirements || []).join("\n"),
+      perks: (job.perks || []).join(", "),
+    });
+    setStep(3);
+  };
+
+  const canAdvance = step === 1 ? (form.title && form.company && form.location) : true;
+
+  const handlePublish = async () => {
+    setSaving(true); setError("");
+    try {
+      await createOrgJob(orgId, {
+        ...form,
+        skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
+        requirements: form.requirements.split("\n").map(s => s.trim()).filter(Boolean),
+        perks: form.perks.split(",").map(s => s.trim()).filter(Boolean),
+      });
+      onPosted(); onClose();
+    } catch (e) { setError(e.message || "Failed to post the job. Please try again."); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-2xl border border-border w-full max-w-4xl shadow-2xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
+            {POST_JOB_STEPS.map((s, i) => (
+              <div key={s.id} className="flex items-center gap-2">
+                <StepBadge n={s.id} active={step === s.id} done={step > s.id} />
+                <span className={`text-xs font-medium hidden sm:inline ${step === s.id ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
+                {i < POST_JOB_STEPS.length - 1 && <div className="w-8 h-px bg-border" />}
+              </div>
+            ))}
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground"><X size={16}/></button>
+        </div>
+
+        <div className="flex flex-1 min-h-0">
+          {/* Main form */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 border-r border-border">
+            {step === 1 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Company *"><Input placeholder="Company name" value={form.company} onChange={e => set("company", e.target.value)} /></Field>
+                <Field label="Job title *"><Input placeholder="e.g. Senior React Developer" value={form.title} onChange={e => set("title", e.target.value)} /></Field>
+                <Field label="Workplace type">
+                  <select value={form.type} onChange={e => set("type", e.target.value)} className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none">
+                    {JOB_WORKPLACE_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </Field>
+                <Field label="Job location *"><Input placeholder="City or metro area" value={form.location} onChange={e => set("location", e.target.value)} /></Field>
+                <Field label="Employment type">
+                  <select value={form.employmentType} onChange={e => set("employmentType", e.target.value)} className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none">
+                    {JOB_EMPLOYMENT_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </Field>
+                <Field label="Seniority level">
+                  <select value={form.level} onChange={e => set("level", e.target.value)} className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none">
+                    {JOB_LEVELS.map(l => <option key={l}>{l}</option>)}
+                  </select>
+                </Field>
+                <Field label="Salary"><Input placeholder="e.g. ₹8–12 LPA" value={form.salary} onChange={e => set("salary", e.target.value)} /></Field>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="flex flex-col gap-4">
+                <Field label="Job description">
+                  <textarea placeholder="Describe the role, responsibilities, and team…" value={form.description} onChange={e => set("description", e.target.value)} rows={5}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-transparent outline-none resize-none focus:ring-1 focus:ring-ring transition-colors" />
+                </Field>
+                <Field label="Required skills (comma separated)"><Input placeholder="React, Node.js, MongoDB" value={form.skills} onChange={e => set("skills", e.target.value)} /></Field>
+                <Field label="Requirements (one per line)">
+                  <textarea placeholder={"3+ years of experience\nB.Tech in CS or related field"} value={form.requirements} onChange={e => set("requirements", e.target.value)} rows={3}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-transparent outline-none resize-none focus:ring-1 focus:ring-ring transition-colors" />
+                </Field>
+                <Field label="Perks (comma separated)"><Input placeholder="Health Insurance, Flexible Hours, Stock Options" value={form.perks} onChange={e => set("perks", e.target.value)} /></Field>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-semibold text-foreground mb-1">Review your job post</p>
+                {[
+                  ["Company", form.company], ["Job title", form.title], ["Location", form.location],
+                  ["Workplace type", form.type], ["Employment type", form.employmentType], ["Seniority level", form.level],
+                  ["Salary", form.salary || "—"], ["Skills", form.skills || "—"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between text-sm border-b border-border pb-2">
+                    <span className="text-muted-foreground">{k}</span>
+                    <span className="font-medium text-foreground text-right max-w-xs truncate">{v}</span>
+                  </div>
+                ))}
+                {form.description && <div><p className="text-xs text-muted-foreground mb-1">Description</p><p className="text-sm text-foreground whitespace-pre-wrap">{form.description}</p></div>}
+                {error && <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar: Applicant Insights + AI job posting */}
+          <div className="w-72 shrink-0 overflow-y-auto px-5 py-5 flex flex-col gap-4 bg-muted/20">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm font-semibold text-foreground mb-1 flex items-center gap-1.5"><TrendingUp size={14}/>Applicant insights</p>
+              {insight ? (
+                <>
+                  <p className="text-2xl font-bold text-foreground mt-2">~{insight.avg}</p>
+                  <p className="text-xs text-muted-foreground">expected applicants, based on {insight.sampleSize} similar postings ({form.type} · {form.level})</p>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={20} className="text-muted-foreground mt-2 mb-1 opacity-40" />
+                  <p className="text-xs font-medium text-foreground">Not enough data</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Fill out more of your job post to get applicant insight estimates.</p>
+                </>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm font-semibold text-foreground mb-1 flex items-center gap-1.5"><Sparkles size={14}/>AI job posting</p>
+              <p className="text-xs text-muted-foreground mb-3">Skip the editing and use the details from a posted job</p>
+              {!orgJobs.length ? (
+                <p className="text-xs text-muted-foreground">No past postings yet.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
+                  {orgJobs.slice(0, 8).map(j => (
+                    <button key={j._id} onClick={() => reuseJob(j)}
+                      className="text-left text-xs px-2.5 py-2 rounded-lg border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors">
+                      <p className="font-medium text-foreground truncate">{j.title}</p>
+                      <p className="text-muted-foreground truncate">{j.company} · {j.location}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
+          {step > 1 && <Button variant="outline" className="gap-1.5" onClick={() => setStep(s => s - 1)}><ArrowLeft size={14}/>Back</Button>}
+          <div className="flex-1" />
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          {step < 3 ? (
+            <Button className="gap-1.5" disabled={!canAdvance} onClick={() => setStep(s => s + 1)}>Next<ArrowRight size={14}/></Button>
+          ) : (
+            <Button className="gap-1.5" disabled={saving} onClick={handlePublish}>
+              {saving ? <><Loader2 size={14} className="animate-spin"/>Publishing…</> : "Publish Job"}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const JobsSubTab = ({ orgId }) => {
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showWizard, setShowWizard] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    getOrgJobs(orgId).then(d => setJobs(d.jobs || [])).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, [orgId]);
+
+  const handleToggle = async (id) => {
+    try { const d = await toggleOrgJob(orgId, id); setJobs(p => p.map(j => j._id === id ? { ...j, active: d.active } : j)); } catch {}
+  };
+  const handleDelete = async (id) => {
+    try { await deleteOrgJob(orgId, id); setJobs(p => p.filter(j => j._id !== id)); } catch {}
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {showWizard && (
+        <PostJobWizard orgId={orgId} orgJobs={jobs} onClose={() => setShowWizard(false)} onPosted={load} />
+      )}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">{jobs.length} job postings</p>
+        <Button size="sm" className="gap-1.5" onClick={() => setShowWizard(true)}><Plus size={13}/>Post a Job</Button>
+      </div>
+
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground"/></div>
+      : jobs.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card p-10 text-center">
+          <Briefcase size={28} className="text-muted-foreground mx-auto mb-2 opacity-30"/>
+          <p className="text-sm text-muted-foreground">No jobs posted yet. Post your first job for this organization.</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-border bg-muted/30">
+              <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Job</th>
+              <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Type / Level</th>
+              <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Applicants</th>
+              <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Status</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground"></th>
+            </tr></thead>
+            <tbody className="divide-y divide-border">
+              {jobs.map(j => (
+                <tr key={j._id} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-foreground">{j.title}</p>
+                    <p className="text-xs text-muted-foreground">{j.company} · {j.location}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{j.type} · {j.level}</td>
+                  <td className="px-4 py-3 text-foreground">{j.applicants?.length || 0}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => handleToggle(j._id)}
+                      className={`text-xs font-medium px-2 py-1 rounded-full border-0 outline-none cursor-pointer ${j.active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" : "bg-muted text-muted-foreground"}`}>
+                      {j.active ? "Active" : "Closed"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => handleDelete(j._id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 size={13}/></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── ATS: Reports sub-tab (LinkedIn Recruiter–style report suite) ───────
+const REPORT_STAGE_LABELS = { applied:"Applied", screening:"Screening", interview:"Interview", offer:"Offer", hired:"Hired", rejected:"Rejected" };
+const REPORT_BAR_COLORS = { applied:"bg-blue-400", screening:"bg-violet-400", interview:"bg-amber-400", offer:"bg-emerald-400", hired:"bg-green-500", rejected:"bg-red-400" };
+const REPORT_TABS = [
+  { id: "summary",          label: "Summary" },
+  { id: "pipeline",         label: "Pipeline" },
+  { id: "usage",            label: "Usage" },
+  { id: "inmail",           label: "InMail" },
+  { id: "jobs",             label: "Jobs" },
+  { id: "source",           label: "Source" },
+  { id: "funnel",           label: "Funnel" },
+  { id: "hiring-assistant", label: "Hiring Assistant" },
+  { id: "custom",           label: "Custom" },
+];
+
+const MiniStars = ({ rating = 0 }) => (
+  <div className="flex gap-0.5">
+    {[1,2,3,4,5].map(i => <Star key={i} size={11} className={i <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"} />)}
+  </div>
+);
+
+const ReportStatCard = ({ label, value, icon: Icon, color }) => (
+  <div className="rounded-xl border border-border bg-card p-4">
+    <Icon size={16} className={`${color} mb-2`} />
+    <p className="text-2xl font-bold text-foreground">{value}</p>
+    <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+  </div>
+);
+
+const EmptyReport = ({ icon: Icon = Inbox, title = "Not enough data", children }) => (
+  <div className="rounded-xl border border-border bg-card p-8 text-center">
+    <Icon size={32} className="mx-auto mb-3 text-muted-foreground opacity-40" />
+    <p className="text-sm font-semibold text-foreground mb-1">{title}</p>
+    {children && <p className="text-xs text-muted-foreground max-w-sm mx-auto">{children}</p>}
+  </div>
+);
+
+const ReportSummaryTab = ({ rep }) => {
+  if (!rep) return <EmptyReport>Add candidates to start seeing summary metrics.</EmptyReport>;
+  const stages = ["applied", "screening", "interview", "offer", "hired"];
+  const maxCount = Math.max(...stages.map(s => rep.byStage?.find(x => x._id === s)?.count || 0), 1);
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <ReportStatCard label="Total Candidates" value={rep.total}                   icon={Users}        color="text-blue-500" />
+        <ReportStatCard label="Hired"            value={rep.hired}                   icon={CheckCircle2} color="text-green-500" />
+        <ReportStatCard label="Avg Rating"       value={`${rep.avgRating || 0}/5`}    icon={Star}         color="text-amber-500" />
+        <ReportStatCard label="Avg Time to Hire" value={`${rep.avgTimeToHire || 0}d`} icon={Clock}        color="text-violet-500" />
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold mb-4">Hiring Funnel</p>
+        <div className="flex flex-col gap-3">
+          {stages.map(s => {
+            const count = rep.byStage?.find(x => x._id === s)?.count || 0;
+            const pct = Math.round((count / maxCount) * 100);
+            return (
+              <div key={s}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-foreground">{REPORT_STAGE_LABELS[s]}</span>
+                  <span className="font-semibold text-foreground">{count}</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${REPORT_BAR_COLORS[s]}`} style={{ width: `${pct}%` }} /></div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold mb-4">Offer Acceptance Rate</p>
+        <div className="flex items-center justify-center">
+          <div className="relative w-28 h-28">
+            <svg viewBox="0 0 36 36" className="w-28 h-28 -rotate-90">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted" />
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="3"
+                strokeDasharray={`${rep.offerAcceptanceRate} ${100 - rep.offerAcceptanceRate}`} className="text-primary" strokeLinecap="round" />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold text-foreground">{rep.offerAcceptanceRate}%</span>
+              <span className="text-[10px] text-muted-foreground">acceptance</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground mt-4">
+          <span>Hired: <strong className="text-foreground">{rep.hired}</strong></span>
+          <span>Rejected: <strong className="text-foreground">{rep.rejected || 0}</strong></span>
+          <span>Total: <strong className="text-foreground">{rep.total}</strong></span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ReportPipelineTab = ({ pipeline }) => {
+  const moved = [...(pipeline?.movedInto || [])].sort((a, b) => b.count - a.count);
+  const byStage = pipeline?.byStage || [];
+  const maxMoved = Math.max(...moved.map(m => m.count), 1);
+  const maxSnap = Math.max(...byStage.map(s => s.count), 1);
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold mb-1">Sourcing Pipeline</p>
+        <p className="text-xs text-muted-foreground mb-4">Stage moves recorded in the selected date range</p>
+        {!moved.length ? <p className="text-sm text-muted-foreground">No stage changes recorded yet</p> : (
+          <div className="flex flex-col gap-3">
+            {moved.map(m => {
+              const pct = Math.round((m.count / maxMoved) * 100);
+              return (
+                <div key={m._id}>
+                  <div className="flex items-baseline gap-1.5 text-xs mb-1">
+                    <span className="text-lg font-bold text-foreground">{m.count}</span>
+                    <span className="text-muted-foreground">moved into <strong className="text-foreground">{REPORT_STAGE_LABELS[m._id] || m._id}</strong></span>
+                  </div>
+                  <div className="h-2.5 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${REPORT_BAR_COLORS[m._id] || "bg-primary"}`} style={{ width: `${pct}%` }} /></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold mb-4">Current Pipeline Snapshot</p>
+        {!byStage.length ? <p className="text-sm text-muted-foreground">No candidates yet</p> : (
+          <div className="flex flex-col gap-3">
+            {ATS_STAGES.map(s => {
+              const count = byStage.find(x => x._id === s)?.count || 0;
+              const pct = Math.round((count / maxSnap) * 100);
+              return (
+                <div key={s}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-foreground">{REPORT_STAGE_LABELS[s]}</span>
+                    <span className="font-semibold text-foreground">{count}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${REPORT_BAR_COLORS[s] || "bg-primary"}`} style={{ width: `${pct}%` }} /></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ReportUsageTab = ({ usage }) => {
+  const ts = usage?.timeseries || [];
+  const max = Math.max(...ts.map(t => t.count), 1);
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <ReportStatCard label="Job Slot Utilization" value={`${usage?.jobSlotUtilization ?? 0}%`} icon={Briefcase} color="text-blue-500" />
+        <ReportStatCard label="Active Jobs"          value={usage?.activeJobs ?? 0}               icon={Building2} color="text-emerald-500" />
+        <ReportStatCard label="Interviews Scheduled" value={usage?.interviewsScheduled ?? 0}       icon={Calendar}  color="text-amber-500" />
+        <ReportStatCard label="Active Recruiters"    value={usage?.activeRecruiters ?? 0}          icon={Users}     color="text-violet-500" />
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold mb-1">Candidates Added Over Time</p>
+        <p className="text-xs text-muted-foreground mb-4">Daily activity in the selected date range</p>
+        {!ts.length ? <p className="text-sm text-muted-foreground">No activity yet</p> : (
+          <div className="flex items-end gap-1 h-32">
+            {ts.map(t => (
+              <div key={t._id} title={`${t._id}: ${t.count}`} className="flex-1 bg-primary/70 hover:bg-primary rounded-t transition-colors"
+                style={{ height: `${Math.max((t.count / max) * 100, 4)}%` }} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ReportInMailTab = () => (
+  <EmptyReport icon={Inbox} title="Not enough data">
+    This organization doesn't have an InMail/email integration connected yet, so response-rate tracking isn't available here.
+    Reach out to candidates directly — once messaging is connected, this report will populate automatically.
+  </EmptyReport>
+);
+
+const ReportJobsTab = ({ jobs }) => {
+  if (!jobs?.length) return <EmptyReport icon={Building2}>Post a job and link candidates to it to see per-job performance here.</EmptyReport>;
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50"><tr>
+          {["Job", "Status", "Candidates", "Hired", "Avg Rating"].map(h => <th key={h} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-4 py-3">{h}</th>)}
+        </tr></thead>
+        <tbody className="divide-y divide-border">
+          {jobs.map((j, i) => (
+            <tr key={j.jobId || i} className="hover:bg-muted/30 transition-colors">
+              <td className="px-4 py-3"><p className="font-medium text-foreground">{j.title}</p>{j.company && <p className="text-[10px] text-muted-foreground">{j.company}</p>}</td>
+              <td className="px-4 py-3">
+                {j.active === null ? <span className="text-xs text-muted-foreground">—</span> : (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${j.active ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300" : "bg-muted text-muted-foreground"}`}>{j.active ? "Active" : "Closed"}</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-foreground">{j.candidatesCount}</td>
+              <td className="px-4 py-3 text-foreground">{j.hiredCount}</td>
+              <td className="px-4 py-3"><MiniStars rating={Math.round(j.avgRating)} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const ReportSourceTab = ({ source, total }) => {
+  const bySource = source?.bySource || [];
+  if (!bySource.length) return <EmptyReport icon={Users}>No sourced candidates yet.</EmptyReport>;
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50"><tr>
+          {["Source", "Candidates", "Hired", "Conversion Rate"].map(h => <th key={h} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-4 py-3">{h}</th>)}
+        </tr></thead>
+        <tbody className="divide-y divide-border">
+          {bySource.map(s => (
+            <tr key={s._id} className="hover:bg-muted/30 transition-colors">
+              <td className="px-4 py-3 text-foreground capitalize">{s._id?.replace("_", " ") || "Unknown"}</td>
+              <td className="px-4 py-3 text-foreground">{s.count} {total ? `(${Math.round((s.count / total) * 100)}%)` : ""}</td>
+              <td className="px-4 py-3 text-foreground">{s.hired}</td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-20 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${s.conversionRate}%` }} /></div>
+                  <span className="text-xs text-muted-foreground">{s.conversionRate}%</span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const ReportFunnelTab = ({ funnel }) => {
+  const steps = funnel?.steps || [];
+  const max = Math.max(...steps.map(s => s.count), 1);
+  if (!steps.length) return <EmptyReport>No candidates yet.</EmptyReport>;
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <p className="text-sm font-semibold mb-4">Hiring Funnel Conversion</p>
+      <div className="flex flex-col gap-4">
+        {steps.map((s, i) => {
+          const pct = Math.round((s.count / max) * 100);
+          return (
+            <div key={s.stage}>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-foreground">{REPORT_STAGE_LABELS[s.stage] || s.stage}</span>
+                <span className="text-muted-foreground">
+                  <strong className="text-foreground">{s.count}</strong>
+                  {i > 0 && <span className="ml-2">· {s.conversionFromPrev}% from previous stage</span>}
+                </span>
+              </div>
+              <div className="h-3 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${REPORT_BAR_COLORS[s.stage] || "bg-primary"}`} style={{ width: `${pct}%` }} /></div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const ReportHiringAssistantTab = ({ orgId }) => {
+  const [state, setState] = useState({ suggestions: [], loading: true });
+  useEffect(() => {
+    getOrgHiringAssistant(orgId).then(d => setState({ suggestions: d.suggestions || [], loading: false })).catch(() => setState({ suggestions: [], loading: false }));
+  }, [orgId]);
+
+  if (state.loading) return <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-muted-foreground" /></div>;
+  if (!state.suggestions.length) return <EmptyReport icon={Sparkles}>Post an active job with required skills, and add candidates with matching skills, to get AI-assisted shortlist suggestions here.</EmptyReport>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {state.suggestions.map(s => (
+        <div key={s.job._id} className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles size={14} className="text-primary" />
+            <p className="text-sm font-semibold text-foreground">{s.job.title}</p>
+            {s.job.company && <span className="text-xs text-muted-foreground">· {s.job.company}</span>}
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">Best-matching candidates in your pipeline, ranked by skill overlap</p>
+          <div className="flex flex-col gap-2">
+            {s.candidates.map(c => (
+              <div key={c._id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">{c.name[0].toUpperCase()}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{c.role} · {c.matchedSkills.join(", ")}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${c.matchScore}%` }} /></div>
+                  <span className="text-xs font-semibold text-foreground w-9 text-right">{c.matchScore}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ReportCustomTab = ({ data }) => {
+  const METRICS = [
+    { id: "total",              label: "Total Candidates",          value: data.report?.total },
+    { id: "hired",               label: "Hired",                     value: data.report?.hired },
+    { id: "rejected",            label: "Rejected",                  value: data.report?.rejected || 0 },
+    { id: "avgRating",           label: "Avg Rating",                value: data.report?.avgRating },
+    { id: "avgTimeToHire",       label: "Avg Time to Hire (days)",   value: data.report?.avgTimeToHire },
+    { id: "offerAcceptanceRate", label: "Offer Acceptance Rate (%)", value: data.report?.offerAcceptanceRate },
+    { id: "interviewsScheduled", label: "Interviews Scheduled",      value: data.usage?.interviewsScheduled },
+    { id: "activeRecruiters",    label: "Active Recruiters",         value: data.usage?.activeRecruiters },
+    { id: "jobSlotUtilization",  label: "Job Slot Utilization (%)",  value: data.usage?.jobSlotUtilization },
+    { id: "activeJobs",          label: "Active Jobs",               value: data.usage?.activeJobs },
+  ];
+  const [selected, setSelected] = useState(["total", "hired", "avgRating", "avgTimeToHire"]);
+  const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold mb-3 flex items-center gap-1.5"><SlidersHorizontal size={14} />Metric Selection</p>
+        <div className="flex flex-col gap-2">
+          {METRICS.map(m => (
+            <label key={m.id} className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+              <input type="checkbox" checked={selected.includes(m.id)} onChange={() => toggle(m.id)} className="accent-primary" />{m.label}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold mb-4">Custom Report</p>
+        {!selected.length ? <p className="text-sm text-muted-foreground">Select at least one metric to build your report.</p> : (
+          <div className="flex flex-col gap-3 text-sm">
+            {METRICS.filter(m => selected.includes(m.id)).map(m => (
+              <div key={m.id} className="flex justify-between border-b border-border pb-2 last:border-0">
+                <span className="text-muted-foreground">{m.label}</span>
+                <span className="font-semibold text-foreground">{m.value ?? "—"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ReportFiltersSidebar = ({ filters, setFilters, onApply, recruiters }) => (
+  <div className="w-52 shrink-0 flex flex-col gap-4">
+    <div className="flex items-center justify-between">
+      <p className="text-xs font-semibold text-foreground">Showing data for</p>
+      <button className="text-[10px] text-primary hover:underline" onClick={() => { const cleared = { from: "", to: "", ownerId: "" }; setFilters(cleared); onApply(cleared); }}>Clear all</button>
+    </div>
+    <div>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Date range</p>
+      <div className="flex flex-col gap-1.5">
+        <Input type="date" className="h-8 text-xs" value={filters.from} onChange={e => setFilters(p => ({ ...p, from: e.target.value }))} />
+        <Input type="date" className="h-8 text-xs" value={filters.to} onChange={e => setFilters(p => ({ ...p, to: e.target.value }))} />
+      </div>
+    </div>
+    {recruiters?.length > 0 && (
+      <div>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Owner</p>
+        <select value={filters.ownerId} onChange={e => setFilters(p => ({ ...p, ownerId: e.target.value }))}
+          className="w-full h-9 text-sm px-3 rounded-lg border border-input bg-background text-foreground outline-none">
+          <option value="">All owners</option>
+          {recruiters.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+        </select>
+      </div>
+    )}
+    <Button size="sm" className="h-7 text-xs" onClick={() => onApply(filters)}>Apply filters</Button>
+  </div>
+);
+
+const ATSReportsView = ({ orgId }) => {
+  const [subTab, setSubTab] = useState("summary");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ from: "", to: "", ownerId: "" });
+
+  const load = (f = filters) => {
+    setLoading(true);
+    getOrgAtsReport(orgId, Object.fromEntries(Object.entries(f).filter(([, v]) => v)))
+      .then(d => setData(d)).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, [orgId]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex border-b border-border overflow-x-auto">
+        {REPORT_TABS.map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)}
+            className={`px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${subTab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-muted-foreground" /></div>
+      : !data ? <div className="text-center py-16 text-muted-foreground">No data yet</div>
+      : (
+        <div className="flex gap-5 items-start">
+          <ReportFiltersSidebar filters={filters} setFilters={setFilters} onApply={load} recruiters={data.recruiters} />
+          <div className="flex-1 min-w-0">
+            {subTab === "summary"          && <ReportSummaryTab rep={data.report} />}
+            {subTab === "pipeline"         && <ReportPipelineTab pipeline={data.pipeline} />}
+            {subTab === "usage"            && <ReportUsageTab usage={data.usage} />}
+            {subTab === "inmail"           && <ReportInMailTab />}
+            {subTab === "jobs"             && <ReportJobsTab jobs={data.jobs} />}
+            {subTab === "source"           && <ReportSourceTab source={data.source} total={data.report?.total} />}
+            {subTab === "funnel"           && <ReportFunnelTab funnel={data.funnel} />}
+            {subTab === "hiring-assistant" && <ReportHiringAssistantTab orgId={orgId} />}
+            {subTab === "custom"           && <ReportCustomTab data={data} />}
+          </div>
         </div>
       )}
     </div>

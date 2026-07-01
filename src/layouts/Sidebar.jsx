@@ -85,15 +85,25 @@ const Sidebar = memo(({ onNavigate }) => {
 
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
-  useEffect(() => {
-    if (!user) return;
-    getStats().then(d => setStats(d.stats)).catch(() => {});
+  const loadMyOrg = () => {
     getMyOrg().then(d => {
       const org  = d.owned || d.adminOf?.[0] || d.memberOf || null;
       const role = d.owned ? "Owner" : d.adminOf?.[0] ? "Admin" : d.memberOf ? "Member" : null;
       setMyOrg(org ? { ...org, myRole: role } : null);
     }).catch(() => {}).finally(() => setOrgLoaded(true));
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    getStats().then(d => setStats(d.stats)).catch(() => {});
+    loadMyOrg();
   }, [user]);
+
+  useEffect(() => {
+    const onOrgUpdated = () => loadMyOrg();
+    window.addEventListener("org:updated", onOrgUpdated);
+    return () => window.removeEventListener("org:updated", onOrgUpdated);
+  }, []);
 
   return (
     <div className="flex flex-col gap-1">

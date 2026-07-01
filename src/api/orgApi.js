@@ -20,6 +20,12 @@ export const updateOrgCandStage  = (orgId, id, stage)  => apiRequest("PUT", `${B
 export const updateOrgCandRating = (orgId, id, rating) => apiRequest("PUT", `${B}/${orgId}/ats/candidates/${id}/rating`, { rating });
 export const updateOrgCandNotes  = (orgId, id, notes)  => apiRequest("PUT", `${B}/${orgId}/ats/candidates/${id}/notes`, { notes });
 export const deleteOrgCandidate  = (orgId, id)  => apiRequest("DELETE",  `${B}/${orgId}/ats/candidates/${id}`);
+export const getOrgAtsReport       = (orgId, p={}) => apiRequest("GET", `${B}/${orgId}/ats/report?${new URLSearchParams(p)}`);
+export const getOrgHiringAssistant = (orgId)       => apiRequest("GET", `${B}/${orgId}/ats/report/hiring-assistant`);
+export const getOrgJobs            = (orgId)       => apiRequest("GET",    `${B}/${orgId}/ats/jobs`);
+export const createOrgJob          = (orgId, d)    => apiRequest("POST",   `${B}/${orgId}/ats/jobs`, d);
+export const toggleOrgJob          = (orgId, id)   => apiRequest("PUT",    `${B}/${orgId}/ats/jobs/${id}/toggle`);
+export const deleteOrgJob          = (orgId, id)   => apiRequest("DELETE", `${B}/${orgId}/ats/jobs/${id}`);
 
 // Workspace — CRM hello there
 export const getOrgLeads    = (orgId, p={}) => apiRequest("GET",    `${B}/${orgId}/crm/leads?${new URLSearchParams(p)}`);
